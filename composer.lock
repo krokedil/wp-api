@@ -1,0 +1,112 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "8209666a206c67addb82877fb234750b",
+    "packages": [],
+    "packages-dev": [
+        {
+            "name": "php-stubs/woocommerce-stubs",
+            "version": "v7.3.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-stubs/woocommerce-stubs.git",
+                "reference": "446c335118632e00854b9ada74319b200e5c78a2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-stubs/woocommerce-stubs/zipball/446c335118632e00854b9ada74319b200e5c78a2",
+                "reference": "446c335118632e00854b9ada74319b200e5c78a2",
+                "shasum": ""
+            },
+            "require": {
+                "php-stubs/wordpress-stubs": "^5.3 || ^6.0"
+            },
+            "require-dev": {
+                "php": "~7.1 || ~8.0",
+                "php-stubs/generator": "^0.8.0"
+            },
+            "suggest": {
+                "symfony/polyfill-php73": "Symfony polyfill backporting some PHP 7.3+ features to lower PHP versions",
+                "szepeviktor/phpstan-wordpress": "WordPress extensions for PHPStan"
+            },
+            "type": "library",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "WooCommerce function and class declaration stubs for static analysis.",
+            "homepage": "https://github.com/php-stubs/woocommerce-stubs",
+            "keywords": [
+                "PHPStan",
+                "static analysis",
+                "woocommerce",
+                "wordpress"
+            ],
+            "support": {
+                "issues": "https://github.com/php-stubs/woocommerce-stubs/issues",
+                "source": "https://github.com/php-stubs/woocommerce-stubs/tree/v7.3.0"
+            },
+            "time": "2023-01-13T00:24:42+00:00"
+        },
+        {
+            "name": "php-stubs/wordpress-stubs",
+            "version": "v6.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-stubs/wordpress-stubs.git",
+                "reference": "19e7966c8e70a99a4824b3e5d1526680a151f13b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-stubs/wordpress-stubs/zipball/19e7966c8e70a99a4824b3e5d1526680a151f13b",
+                "reference": "19e7966c8e70a99a4824b3e5d1526680a151f13b",
+                "shasum": ""
+            },
+            "replace": {
+                "giacocorsiglia/wordpress-stubs": "*"
+            },
+            "require-dev": {
+                "nikic/php-parser": "< 4.12.0",
+                "php": "~7.3 || ~8.0",
+                "php-stubs/generator": "^0.8.1",
+                "phpdocumentor/reflection-docblock": "^5.3",
+                "phpstan/phpstan": "^1.2"
+            },
+            "suggest": {
+                "paragonie/sodium_compat": "Pure PHP implementation of libsodium",
+                "symfony/polyfill-php73": "Symfony polyfill backporting some PHP 7.3+ features to lower PHP versions",
+                "szepeviktor/phpstan-wordpress": "WordPress extensions for PHPStan"
+            },
+            "type": "library",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "WordPress function and class declaration stubs for static analysis.",
+            "homepage": "https://github.com/php-stubs/wordpress-stubs",
+            "keywords": [
+                "PHPStan",
+                "static analysis",
+                "wordpress"
+            ],
+            "support": {
+                "issues": "https://github.com/php-stubs/wordpress-stubs/issues",
+                "source": "https://github.com/php-stubs/wordpress-stubs/tree/v6.1.0"
+            },
+            "time": "2022-11-09T05:33:25+00:00"
+        }
+    ],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": {
+        "php": "~7.1 || ~8.0"
+    },
+    "plugin-api-version": "2.3.0"
+}
