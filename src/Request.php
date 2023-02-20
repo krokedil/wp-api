@@ -165,8 +165,13 @@ abstract class Request {
 	 */
 	protected function log_response( $response, $request_args, $request_url ) {
 		// Get the response body if its not a WP_Error.
-		$body = ! is_wp_error( $response ) ? json_decode( wp_remote_retrieve_body( $response ), true ) : array();
+		$response_body = ! is_wp_error( $response ) ? json_decode( wp_remote_retrieve_body( $response ), true ) : array();
 		$code = wp_remote_retrieve_response_code( $response );
+
+		// Parse the Request body into an array if its json format.
+		$request_body  = $request_args['body'];
+		$decoded_body  = json_decode( $request_body );
+		$request_args['body'] = $decoded_body ?? $request_args['body'];
 
 		// Log the response.
 		Logger::log(
@@ -178,7 +183,7 @@ abstract class Request {
 				'request'        => $request_args,
 				'request_url'    => $request_url,
 				'response'       => array(
-					'body' => $body,
+					'body' => $response_body,
 					'code' => $code,
 				),
 				'timestamp'      => date( 'Y-m-d H:i:s' ), // phpcs:ignore WordPress.DateTime.RestrictedFunctions -- Date is not used for display.
