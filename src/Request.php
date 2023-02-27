@@ -164,6 +164,10 @@ abstract class Request {
 	 * @return void
 	 */
 	protected function log_response( $response, $request_args, $request_url ) {
+		if ( ! $this->config['logging_enabled'] ) {
+			return;
+		}
+
 		// Get the response body if its not a WP_Error.
 		$response_body = ! is_wp_error( $response ) ? json_decode( wp_remote_retrieve_body( $response ), true ) : array();
 		$code = wp_remote_retrieve_response_code( $response );

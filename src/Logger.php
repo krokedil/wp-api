@@ -125,8 +125,12 @@ class Logger {
 			$wp_hook = $debug_line['object'] ?? null;
 			if ( $wp_hook instanceof \WP_Hook ) {
 				$priority = $wp_hook->current_priority();
-				$current  = current( $wp_hook->current() );
+				$current  = $wp_hook->current() ? current( $wp_hook->current() ) : false;
 				$name     = '';
+
+				if ( ! $current ) {
+					return;
+				}
 
 				$function = $current['function'] ?? array();
 
