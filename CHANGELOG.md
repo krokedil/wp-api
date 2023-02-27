@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2023-02-27
+
+### Fixed
+
+* Fixed a issue where the current WP_Hook method would return a boolean instead of an array.
+* Fixed an issue with turning off the log.
+
 ## [1.0.0] - 2023-01-13
 
 ### Added
