@@ -170,12 +170,12 @@ abstract class Request {
 
 		// Get the response body if its not a WP_Error.
 		$response_body = ! is_wp_error( $response ) ? json_decode( wp_remote_retrieve_body( $response ), true ) : array();
-		$code = wp_remote_retrieve_response_code( $response );
+		$code          = wp_remote_retrieve_response_code( $response );
 
 		// Parse the Request body into an array if its json format.
-		$request_body  = $request_args['body'];
-		$decoded_body  = json_decode( $request_body );
-		$request_args['body'] = $decoded_body ?? $request_args['body'];
+		$request_body         = $request_args['body'] ?? '';
+		$decoded_body         = json_decode( $request_body );
+		$request_args['body'] = $decoded_body ?? $request_args['body'] ?? null;
 
 		// Log the response.
 		Logger::log(
