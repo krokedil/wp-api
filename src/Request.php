@@ -32,6 +32,7 @@ abstract class Request {
 		'logging_enabled'        => true,
 		'extended_debugging'     => false,
 		'base_url'               => null,
+		'content_format'         => 'json',
 	);
 
 	/**
@@ -148,7 +149,7 @@ abstract class Request {
 		if ( $response_code < 200 || $response_code > 299 ) {
 			$return = $this->get_error_message( $response );
 		} else {
-			$return = json_decode( wp_remote_retrieve_body( $response ), true );
+			$return = $this->get_body( $response );
 		}
 
 		$this->log_response( $response, $request_args, $request_url );
@@ -169,13 +170,13 @@ abstract class Request {
 		}
 
 		// Get the response body if its not a WP_Error.
-		$response_body = ! is_wp_error( $response ) ? json_decode( wp_remote_retrieve_body( $response ), true ) : array();
+		$response_body = ! is_wp_error( $response ) ? $this->get_body( $response ) : array();
 		$code          = wp_remote_retrieve_response_code( $response );
 
 		// Parse the Request body into an array if its json format.
-		$request_body         = $request_args['body'] ?? '';
+		$request_body         = $request_args['body'];
 		$decoded_body         = json_decode( $request_body );
-		$request_args['body'] = $decoded_body ?? $request_args['body'] ?? null;
+		$request_args['body'] = $decoded_body ?? $request_args['body'];
 
 		// Log the response.
 		Logger::log(
@@ -195,6 +196,26 @@ abstract class Request {
 				'plugin_version' => $this->config['plugin_version'],
 			)
 		);
+	}
+
+	/**
+	 * Get the body content.
+	 *
+	 * @param array|\WP_Error $response The response from the request.
+	 * @return array|\WP_Error
+	 */
+	protected function get_body( $response ) {
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		if ( 'xml' === $this->config['content_format'] ) {
+			$json   = wp_json_encode( simplexml_load_string( wp_remote_retrieve_body( $response ) ) );
+			$return = json_decode( $json, true );
+		} else {
+			$return = json_decode( wp_remote_retrieve_body( $response ), true );
+		}
+		return $return;
 	}
 
 	/**
