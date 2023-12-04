@@ -170,12 +170,14 @@ abstract class Request {
 
 		// Get the response body if its not a WP_Error.
 		$response_body = ! is_wp_error( $response ) ? json_decode( wp_remote_retrieve_body( $response ), true ) : array();
-		$code = wp_remote_retrieve_response_code( $response );
+		$code          = wp_remote_retrieve_response_code( $response );
 
 		// Parse the Request body into an array if its json format.
-		$request_body  = $request_args['body'];
-		$decoded_body  = json_decode( $request_body );
-		$request_args['body'] = $decoded_body ?? $request_args['body'];
+		$request_body         = $request_args['body'] ?? '';
+		$decoded_body         = json_decode( $request_body );
+		$request_args['body'] = $decoded_body ?? $request_args['body'] ?? null;
+
+		$request_args = $this->sanitize_request_args( $request_args );
 
 		// Log the response.
 		Logger::log(
@@ -195,6 +197,25 @@ abstract class Request {
 				'plugin_version' => $this->config['plugin_version'],
 			)
 		);
+	}
+
+	/**
+	 * Remove sensitive data from the log.
+	 *
+	 * @param array $request_args The request data to sanitize.
+	 * @return array The request data sanitized.
+	 */
+	protected function sanitize_request_args( $request_args ) {
+		// Do not log the authorization token.
+		foreach ( $request_args['headers'] as $header => $value ) {
+			if ( 'authorization' === strtolower( $header ) ) {
+				// If it is longer than 15 char., it most likely has a token. This is an assumption that is safe even if it is wrong.
+				$request_args['headers'][ $header ] = strlen( $value ) > 15 ? '[redacted]' : '[missing]';
+				break;
+			}
+		}
+
+		return $request_args;
 	}
 
 	/**
