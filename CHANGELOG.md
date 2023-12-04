@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+------------------
+## [1.1.0] - 2023-12-04
+### Fixed
+* Fixed an issue that would cause a error notice when there was no body set. For example with GET requests.
+
+### Added
+* Added sanitation of the auth headers for the requests. This will prevent the auth headers from being logged if its above a certain length. This is to prevent the auth headers from being logged in the logs if they are correct, but still leave information in the logs if they are incorrect.
+
 ## [1.0.1] - 2023-02-27
 
 ### Fixed
