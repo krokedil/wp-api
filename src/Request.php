@@ -149,7 +149,7 @@ abstract class Request {
 		if ( $response_code < 200 || $response_code > 299 ) {
 			$return = $this->get_error_message( $response );
 		} else {
-			$return = $this->get_body( $response );
+			$return = $this->get_response_body( $response );
 		}
 
 		$this->log_response( $response, $request_args, $request_url );
@@ -170,7 +170,7 @@ abstract class Request {
 		}
 
 		// Get the response body if its not a WP_Error.
-		$response_body = ! is_wp_error( $response ) ? $this->get_body( $response ) : array();
+		$response_body = ! is_wp_error( $response ) ? $this->get_response_body( $response ) : array();
 		$code          = wp_remote_retrieve_response_code( $response );
 
 		// Parse the Request body into an array if its json format.
@@ -199,23 +199,39 @@ abstract class Request {
 	}
 
 	/**
-	 * Get the body content.
+	 * Returns the body of the response based on the content type.
 	 *
-	 * @param array|\WP_Error $response The response from the request.
-	 * @return array|\WP_Error
+	 * @param array|WP_Error $response The response from wp_remote_get() or wp_remote_post().
+	 * @return array|object|string|WP_Error Parsed response body or WP_Error if an error occurs.
 	 */
-	protected function get_body( $response ) {
+	public function get_response_body( $response ) {
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
 
-		if ( 'xml' === $this->config['content_format'] ) {
-			$json   = wp_json_encode( simplexml_load_string( wp_remote_retrieve_body( $response ) ) );
-			$return = json_decode( $json, true );
+		$content_type = wp_remote_retrieve_header( $response, 'content-type' );
+		$body         = wp_remote_retrieve_body( $response );
+
+		if ( strpos( $content_type, 'application/json' ) !== false ) {
+			$parsed_body = json_decode( $body, true );
+			if ( json_last_error() === JSON_ERROR_NONE ) {
+				return $parsed_body;
+			}
+			return new WP_Error( 'json_decode_error', 'Failed to decode JSON' );
+
+		} elseif ( strpos( $content_type, 'text/html' ) !== false ) {
+			return $body;
+
+		} elseif ( strpos( $content_type, 'application/xml' ) !== false || strpos( $content_type, 'text/xml' ) !== false ) {
+			$parsed_body = simplexml_load_string( $body );
+			if ( $parsed_body !== false ) {
+				return json_decode( wp_json_encode( $parsed_body ), true );
+			}
+			return new WP_Error( 'xml_parse_error', 'Failed to parse XML' );
+
 		} else {
-			$return = json_decode( wp_remote_retrieve_body( $response ), true );
+			return $body;
 		}
-		return $return;
 	}
 
 	/**
