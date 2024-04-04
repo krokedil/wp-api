@@ -178,6 +178,17 @@ abstract class Request {
 		$decoded_body         = json_decode( $request_body );
 		$request_args['body'] = $decoded_body ?? $request_args['body'] ?? null;
 
+		// Set log level.
+		if ( $code < 200 || $code > 299 ) {
+			$log_level = 'error';
+		} else {
+			if ( isset( $response_body['status'] ) && 'warning' === $response_body['status'] ) {
+				$log_level = 'warning';
+			} else {
+				$log_level = 'info';
+			}
+		}
+
 		// Log the response.
 		Logger::log(
 			$this->config['slug'],
@@ -191,6 +202,7 @@ abstract class Request {
 					'body' => $response_body,
 					'code' => $code,
 				),
+				'log_level'      => $log_level,
 				'timestamp'      => date( 'Y-m-d H:i:s' ), // phpcs:ignore WordPress.DateTime.RestrictedFunctions -- Date is not used for display.
 				'stack'          => Logger::get_stack( $this->config['extended_debugging'] ),
 				'plugin_version' => $this->config['plugin_version'],
