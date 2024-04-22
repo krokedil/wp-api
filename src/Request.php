@@ -179,13 +179,21 @@ abstract class Request {
 
 		$request_args = $this->sanitize_request_args( $request_args );
 
+		$arguments = $this->arguments;
+		if ( isset( $arguments['username'] ) ) {
+			$arguments['username'] = '[REDACTED]';
+		}
+		if ( isset( $arguments['password'] ) ) {
+			$arguments['password'] = '[REDACTED]';
+		}
+
 		// Log the response.
 		Logger::log(
 			$this->config['slug'],
 			array(
 				'type'           => $this->method,
 				'title'          => $this->log_title,
-				'arguments'      => $this->arguments,
+				'arguments'      => $arguments,
 				'request'        => $request_args,
 				'request_url'    => $request_url,
 				'response'       => array(
@@ -210,7 +218,7 @@ abstract class Request {
 		foreach ( $request_args['headers'] as $header => $value ) {
 			if ( 'authorization' === strtolower( $header ) ) {
 				// If it is longer than 15 char., it most likely has a token. This is an assumption that is safe even if it is wrong.
-				$request_args['headers'][ $header ] = strlen( $value ) > 15 ? '[redacted]' : '[missing]';
+				$request_args['headers'][ $header ] = strlen( $value ) > 15 ? '[REDACTED]' : '[MISSING]';
 				break;
 			}
 		}

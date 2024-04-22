@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ------------------
+## [1.1.1] - 2023-12-04
+### Changed
+* Redacted the username and password from the log.
+
 ## [1.1.0] - 2023-12-04
 ### Fixed
 * Fixed an issue that would cause a error notice when there was no body set. For example with GET requests.
