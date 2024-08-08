@@ -15,7 +15,7 @@ For now this repo is private, so you need to add the following to your composer.
   "repositories": [
     {
       "type": "vcs",
-      "url": "git@github.com:krokedil/woocommerce.git"
+      "url": "git@github.com:krokedil/wp-api.git"
     }
   ],
 ```
