@@ -200,7 +200,7 @@ abstract class Request {
 					'body' => $response_body,
 					'code' => $code,
 				),
-				'timestamp'      => date( 'Y-m-d H:i:s' ), // phpcs:ignore WordPress.DateTime.RestrictedFunctions -- Date is not used for display.
+				'timestamp'      => current_time( 'mysql' ),
 				'stack'          => Logger::get_stack( $this->config['extended_debugging'] ),
 				'plugin_version' => $this->config['plugin_version'],
 			)
