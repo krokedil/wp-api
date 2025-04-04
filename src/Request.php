@@ -216,81 +216,82 @@ abstract class Request {
 				)
 			);
 		}
-
-		/**
-		 * Returns the body of the response based on the content type.
-		 *
-		 * @param array|WP_Error $response The response from wp_remote_get() or wp_remote_post().
-		 * @return array|object|string|WP_Error Parsed response body or WP_Error if an error occurs.
-		 */
-		public function get_response_body( $response ) {
-			if ( is_wp_error( $response ) ) {
-				return $response;
-			}
-
-			$content_type = wp_remote_retrieve_header( $response, 'content-type' );
-			$body         = wp_remote_retrieve_body( $response );
-
-			if ( strpos( $content_type, 'application/json' ) !== false ) {
-				$parsed_body = json_decode( $body, true );
-				if ( json_last_error() === JSON_ERROR_NONE ) {
-					return $parsed_body;
-				}
-				return new WP_Error( 'json_decode_error', 'Failed to decode JSON' );
-
-			} elseif ( strpos( $content_type, 'text/html' ) !== false ) {
-				return $body;
-
-			} elseif ( strpos( $content_type, 'application/xml' ) !== false || strpos( $content_type, 'text/xml' ) !== false ) {
-				$parsed_body = simplexml_load_string( $body );
-				if ( $parsed_body !== false ) {
-					return json_decode( wp_json_encode( $parsed_body ), true );
-				}
-				return new WP_Error( 'xml_parse_error', 'Failed to parse XML' );
-
-			} else {
-				return $body;
-			}
-		}
-
-		/**
-		 * Remove sensitive data from the log.
-		 *
-		 * @param array $request_args The request data to sanitize.
-		 * @return array The request data sanitized.
-		 */
-		protected function sanitize_request_args( $request_args ) {
-			// Do not log the authorization token.
-			foreach ( $request_args['headers'] as $header => $value ) {
-				if ( 'authorization' === strtolower( $header ) ) {
-					// If it is longer than 15 char., it most likely has a token. This is an assumption that is safe even if it is wrong.
-					$request_args['headers'][ $header ] = strlen( $value ) > 15 ? '[REDACTED]' : '[MISSING]';
-					break;
-				}
-			}
-
-			return $request_args;
-		}
-
-		/**
-		 * Calculate the auth headers. Has to be implemented by the child class.
-		 *
-		 * @return string
-		 */
-		abstract protected function calculate_auth();
-
-		/**
-		 * Get the request args.
-		 *
-		 * @return array
-		 */
-		abstract protected function get_request_args();
-
-		/**
-		 * Gets the error message from the response. Has to be implemented by the child class.
-		 *
-		 * @param array $response The response from the request.
-		 * @return \WP_Error
-		 */
-		abstract protected function get_error_message( $response );
 	}
+
+	/**
+	 * Returns the body of the response based on the content type.
+	 *
+	 * @param array|WP_Error $response The response from wp_remote_get() or wp_remote_post().
+	 * @return array|object|string|WP_Error Parsed response body or WP_Error if an error occurs.
+	 */
+	public function get_response_body( $response ) {
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$content_type = wp_remote_retrieve_header( $response, 'content-type' );
+		$body         = wp_remote_retrieve_body( $response );
+
+		if ( strpos( $content_type, 'application/json' ) !== false ) {
+			$parsed_body = json_decode( $body, true );
+			if ( json_last_error() === JSON_ERROR_NONE ) {
+				return $parsed_body;
+			}
+			return new WP_Error( 'json_decode_error', 'Failed to decode JSON' );
+
+		} elseif ( strpos( $content_type, 'text/html' ) !== false ) {
+			return $body;
+
+		} elseif ( strpos( $content_type, 'application/xml' ) !== false || strpos( $content_type, 'text/xml' ) !== false ) {
+			$parsed_body = simplexml_load_string( $body );
+			if ( $parsed_body !== false ) {
+				return json_decode( wp_json_encode( $parsed_body ), true );
+			}
+			return new WP_Error( 'xml_parse_error', 'Failed to parse XML' );
+
+		} else {
+			return $body;
+		}
+	}
+
+	/**
+	 * Remove sensitive data from the log.
+	 *
+	 * @param array $request_args The request data to sanitize.
+	 * @return array The request data sanitized.
+	 */
+	protected function sanitize_request_args( $request_args ) {
+		// Do not log the authorization token.
+		foreach ( $request_args['headers'] as $header => $value ) {
+			if ( 'authorization' === strtolower( $header ) ) {
+				// If it is longer than 15 char., it most likely has a token. This is an assumption that is safe even if it is wrong.
+				$request_args['headers'][ $header ] = strlen( $value ) > 15 ? '[REDACTED]' : '[MISSING]';
+				break;
+			}
+		}
+
+		return $request_args;
+	}
+
+	/**
+	 * Calculate the auth headers. Has to be implemented by the child class.
+	 *
+	 * @return string
+	 */
+	abstract protected function calculate_auth();
+
+	/**
+	 * Get the request args.
+	 *
+	 * @return array
+	 */
+	abstract protected function get_request_args();
+
+	/**
+	 * Gets the error message from the response. Has to be implemented by the child class.
+	 *
+	 * @param array $response The response from the request.
+	 * @return \WP_Error
+	 */
+	abstract protected function get_error_message( $response );
+}
