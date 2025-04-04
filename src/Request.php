@@ -180,42 +180,41 @@ abstract class Request {
 		// Set log level.
 		if ( $code < 200 || $code > 299 ) {
 			$log_level = 'error';
-		} else {
-			if ( isset( $response_body['status'] ) && 'warning' === $response_body['status'] ) {
+		} elseif ( isset( $response_body['status'] ) && 'warning' === $response_body['status'] ) {
 				$log_level = 'warning';
-			} else {
-				$log_level = 'info';
-			}
-			$request_args = $this->sanitize_request_args( $request_args );
-
-			$arguments = $this->arguments;
-			if ( isset( $arguments['username'] ) ) {
-				$arguments['username'] = '[REDACTED]';
-			}
-			if ( isset( $arguments['password'] ) ) {
-				$arguments['password'] = '[REDACTED]';
-			}
-
-			// Log the response.
-			Logger::log(
-				$this->config['slug'],
-				array(
-					'type'        => $this->method,
-					'title'       => $this->log_title,
-					'arguments'   => $arguments,
-					'request'     => $request_args,
-					'request_url' => $request_url,
-					'response'    => array(
-						'body' => $response_body,
-						'code' => $code,
-					),
-					'log_level'   => $log_level,
-					'timestamp'   => date( 'Y-m-d H:i:s' ), // phpcs:ignore WordPress.DateTime.RestrictedFunctions -- Date is not used for display.
-				'stack'           => Logger::get_stack( $this->config['extended_debugging'] ),
-				'plugin_version'  => $this->config['plugin_version'],
-				)
-			);
+		} else {
+			$log_level = 'info';
 		}
+
+		$request_args = $this->sanitize_request_args( $request_args );
+
+		$arguments = $this->arguments;
+		if ( isset( $arguments['username'] ) ) {
+			$arguments['username'] = '[REDACTED]';
+		}
+		if ( isset( $arguments['password'] ) ) {
+			$arguments['password'] = '[REDACTED]';
+		}
+
+		// Log the response.
+		Logger::log(
+			$this->config['slug'],
+			array(
+				'type'        => $this->method,
+				'title'       => $this->log_title,
+				'arguments'   => $arguments,
+				'request'     => $request_args,
+				'request_url' => $request_url,
+				'response'    => array(
+					'body' => $response_body,
+					'code' => $code,
+				),
+				'log_level'   => $log_level,
+				'timestamp'   => date( 'Y-m-d H:i:s' ), // phpcs:ignore WordPress.DateTime.RestrictedFunctions -- Date is not used for display.
+			'stack'           => Logger::get_stack( $this->config['extended_debugging'] ),
+			'plugin_version'  => $this->config['plugin_version'],
+			)
+		);
 	}
 
 	/**
