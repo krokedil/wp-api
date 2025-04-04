@@ -32,7 +32,6 @@ abstract class Request {
 		'logging_enabled'        => true,
 		'extended_debugging'     => false,
 		'base_url'               => null,
-		'content_format'         => 'json',
 	);
 
 	/**
