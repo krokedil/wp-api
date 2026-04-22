@@ -70,14 +70,57 @@ abstract class Request {
 	public $method = 'GET';
 
 	/**
+	 * Fields to mask in the request args before logging.
+	 * The structure mirrors the request array. Keys map to either a list of field names (string values)
+	 * or nested arrays for recursive masking.
+	 *
+	 * Example:
+	 * array(
+	 *     'headers' => array( 'Authorization' ),
+	 *     'body'    => array(
+	 *         'billing_address' => array( 'email', 'phone' ),
+	 *     ),
+	 * )
+	 *
+	 * @var array
+	 */
+	protected $request_fields_to_mask = array(
+		'headers' => array( 'Authorization' ),
+	);
+
+	/**
+	 * Fields to mask in the response body before logging.
+	 * Top-level string values are masked directly. Array values trigger recursive masking of the named sub-key.
+	 *
+	 * Example:
+	 * array(
+	 *     'client_token',
+	 *     'billing_address' => array( 'email', 'phone' ),
+	 * )
+	 *
+	 * @var array
+	 */
+	protected $response_fields_to_mask = array();
+
+	/**
 	 * Constructor.
 	 *
-	 * @param array $config Configuration array.
+	 * @param array $config       Configuration array.
+	 * @param array $settings     Plugin settings.
+	 * @param array $arguments    Request arguments.
+	 * @param array $masked_fields Optional extra fields to mask, with keys 'request' and/or 'response'.
 	 */
-	public function __construct( $config = array(), $settings = array(), $arguments = array() ) {
+	public function __construct( $config = array(), $settings = array(), $arguments = array(), $masked_fields = array() ) {
 		$this->config    = wp_parse_args( $config, $this->defaults );
 		$this->settings  = $settings;
 		$this->arguments = $arguments;
+
+		if ( ! empty( $masked_fields['request'] ) ) {
+			$this->request_fields_to_mask = array_merge( $this->request_fields_to_mask, $masked_fields['request'] );
+		}
+		if ( ! empty( $masked_fields['response'] ) ) {
+			$this->response_fields_to_mask = array_merge( $this->response_fields_to_mask, $masked_fields['response'] );
+		}
 	}
 
 	/**
@@ -170,6 +213,7 @@ abstract class Request {
 
 		// Get the response body if its not a WP_Error.
 		$response_body = ! is_wp_error( $response ) ? json_decode( wp_remote_retrieve_body( $response ), true ) : array();
+		$response_body = $this->mask_response( $response_body );
 		$code          = wp_remote_retrieve_response_code( $response );
 
 		// Parse the Request body into an array if its json format.
@@ -177,7 +221,7 @@ abstract class Request {
 		$decoded_body         = json_decode( $request_body );
 		$request_args['body'] = $decoded_body ?? $request_args['body'] ?? null;
 
-		$request_args = $this->sanitize_request_args( $request_args );
+		$request_args = $this->mask_request_args( $request_args );
 
 		$arguments = $this->arguments;
 		if ( isset( $arguments['username'] ) ) {
@@ -208,8 +252,66 @@ abstract class Request {
 	}
 
 	/**
+	 * Mask sensitive fields in the request args before logging.
+	 *
+	 * @param array $request_args The request args.
+	 * @return array
+	 */
+	protected function mask_request_args( $request_args ) {
+		if ( empty( $this->request_fields_to_mask ) ) {
+			return $request_args;
+		}
+		try {
+			return $this->sanitize_field( $request_args, $this->request_fields_to_mask );
+		} catch ( \Throwable $e ) {
+			return $request_args;
+		}
+	}
+
+	/**
+	 * Mask sensitive fields in the response body before logging.
+	 *
+	 * @param array|\WP_Error $response The decoded response body.
+	 * @return array|\WP_Error
+	 */
+	protected function mask_response( $response ) {
+		if ( is_wp_error( $response ) || empty( $response ) ) {
+			return $response;
+		}
+		if ( empty( $this->response_fields_to_mask ) ) {
+			return $response;
+		}
+		try {
+			return $this->sanitize_field( $response, $this->response_fields_to_mask );
+		} catch ( \Throwable $e ) {
+			return $response;
+		}
+	}
+
+	/**
+	 * Recursively mask a set of fields within a data array.
+	 * Array values in $fields_to_sanitize trigger recursive descent into the matching key.
+	 * String values name a field to replace with '*****' (empty values are left as-is).
+	 *
+	 * @param array $data               The data array to sanitize.
+	 * @param array $fields_to_sanitize The fields to sanitize.
+	 * @return array
+	 */
+	protected function sanitize_field( $data, $fields_to_sanitize ) {
+		foreach ( $fields_to_sanitize as $key => $value ) {
+			if ( is_array( $value ) && isset( $data[ $key ] ) && is_array( $data[ $key ] ) ) {
+				$data[ $key ] = $this->sanitize_field( $data[ $key ], $value );
+			} elseif ( is_string( $value ) && isset( $data[ $value ] ) ) {
+				$data[ $value ] = empty( $data[ $value ] ) ? $data[ $value ] : '*****';
+			}
+		}
+		return $data;
+	}
+
+	/**
 	 * Remove sensitive data from the log.
 	 *
+	 * @deprecated Use mask_request_args() instead. Kept for backward compatibility.
 	 * @param array $request_args The request data to sanitize.
 	 * @return array The request data sanitized.
 	 */
