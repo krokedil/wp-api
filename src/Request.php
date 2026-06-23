@@ -181,8 +181,12 @@ abstract class Request {
 		// Set log level.
 		if ( $code < 200 || $code > 299 ) {
 			$log_level = 'error';
+		} elseif ( isset( $response_body['status'] ) && 'error' === $response_body['status'] ) {
+			// Some APIs (e.g. Fraktjakt) return a successful HTTP status while reporting an
+			// application-level error in the response body. Treat those as errors too.
+			$log_level = 'error';
 		} elseif ( isset( $response_body['status'] ) && 'warning' === $response_body['status'] ) {
-				$log_level = 'warning';
+			$log_level = 'warning';
 		} else {
 			$log_level = 'info';
 		}
