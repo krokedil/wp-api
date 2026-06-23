@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+* Log responses with an application-level error in the body (`status` is `error`) at the `error` log level, even when the HTTP status code is successful (2xx). Previously only `warning` was handled this way, so APIs such as Fraktjakt that return HTTP 200 with an error in the body were logged as `info`.
 
 ------------------
 ## [1.1.1] - 2023-12-04

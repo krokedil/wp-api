@@ -26,12 +26,41 @@ class Logger {
 	 * @return void
 	 */
 	public static function log( $slug, $log_data = array() ) {
-		// Log the data.
-		if ( empty( self::$log ) ) {
-			self::$log = new \WC_Logger();
+		$log_level = $log_data['log_level'] ?? 'info';
+		$logger    = wc_get_logger();
+		$message   = wp_json_encode( $log_data );
+		$context   = array( 'source' => $slug );
+		switch ( $log_level ) {
+			case 'emergency':
+				$logger->emergency( $message, $context );
+				break;
+			case 'alert':
+				$logger->alert( $message, $context );
+				break;
+			case 'critical':
+				$logger->critical( $message, $context );
+				break;
+			case 'error':
+				$logger->error( $message, $context );
+				break;
+			case 'critical':
+				$logger->critical( $message, $context );
+				break;
+			case 'warning':
+				$logger->warning( $message, $context );
+				break;
+			case 'notice':
+				$logger->notice( $message, $context );
+				break;
+			case 'info':
+				$logger->info( $message, $context );
+				break;
+			case 'debug':
+				$logger->debug( $message, $context );
+				break;
+			default:
+				$logger->info( $message, $context );
 		}
-
-		self::$log->add( $slug, wp_json_encode( $log_data ) );
 	}
 
 	/**
@@ -45,7 +74,7 @@ class Logger {
 		$stack      = array();
 
 		// Skip the first 4 items in the stack trace to skip to the actual caller.
-		$count      = count( $debug_data );
+		$count = count( $debug_data );
 		for ( $i = 5; $i < $count; $i++ ) {
 			self::process_debug_line( $stack, $debug_data[ $i ], $extended_debugging );
 		}
@@ -70,9 +99,9 @@ class Logger {
 		self::handle_wp_hook( $class, $function, $args, $debug_line );
 
 		// Construct a caller string.
-		$caller  = self::get_caller_string( $class, $type, $function, $args, $extended_debugging );
+		$caller = self::get_caller_string( $class, $type, $function, $args, $extended_debugging );
 
-		$row     = array(
+		$row = array(
 			'file'     => $debug_line['file'] ?? '',
 			'line'     => $debug_line['line'] ?? '',
 			'function' => $caller,
@@ -93,13 +122,13 @@ class Logger {
 	 */
 	private static function get_caller_string( $class, $type, $function, $args, $extended_debugging ) {
 		// Construct a caller string.
-		$caller = $class . $type . $function;
+		$caller  = $class . $type . $function;
 		$caller .= '(';
 		// Only add data if we are doing extended debugging.
 		$caller .= $extended_debugging ? implode(
 			', ',
 			array_map(
-				function ($value) {
+				function ( $value ) {
 					// Json encode all values so that we can see what objects and arrays are passed. Dont escape anything, partial output on errors, and ignore slashes and line terminators.
 					return wp_json_encode( $value, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_UNESCAPED_LINE_TERMINATORS | JSON_UNESCAPED_SLASHES );
 				},
