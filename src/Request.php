@@ -8,6 +8,9 @@
 namespace Krokedil\WpApi;
 
 use Krokedil\WpApi\Logger;
+use Krokedil\WpApi\Masking\CredentialMask;
+use Krokedil\WpApi\Masking\Masker;
+use Krokedil\WpApi\Masking\MaskRules;
 
 /**
  * Base request class for the package.
@@ -71,36 +74,62 @@ abstract class Request {
 
 	/**
 	 * Fields to mask in the request args before logging.
-	 * The structure mirrors the request array. Keys map to either a list of field names (string values)
-	 * or nested arrays for recursive masking.
+	 *
+	 * Dot separated paths into the request args, where '*' matches every key at that
+	 * level. The legacy nested array format is still accepted.
 	 *
 	 * Example:
 	 * array(
-	 *     'headers' => array( 'Authorization' ),
-	 *     'body'    => array(
-	 *         'billing_address' => array( 'email', 'phone' ),
-	 *     ),
+	 *     'headers.Authorization',
+	 *     'body.billing_address.email',
+	 *     'body.order_lines.*.reference',
 	 * )
 	 *
 	 * @var array
 	 */
 	protected $request_fields_to_mask = array(
-		'headers' => array( 'Authorization' ),
+		'headers.Authorization',
 	);
 
 	/**
 	 * Fields to mask in the response body before logging.
-	 * Top-level string values are masked directly. Array values trigger recursive masking of the named sub-key.
+	 *
+	 * Same format as $request_fields_to_mask, but relative to the decoded response body.
 	 *
 	 * Example:
 	 * array(
 	 *     'client_token',
-	 *     'billing_address' => array( 'email', 'phone' ),
+	 *     'billing_address.email',
 	 * )
 	 *
 	 * @var array
 	 */
 	protected $response_fields_to_mask = array();
+
+	/**
+	 * Fields to mask in the request arguments before logging.
+	 *
+	 * @var array
+	 */
+	protected $argument_fields_to_mask = array(
+		'username',
+		'password',
+		'api_password',
+	);
+
+	/**
+	 * Extra fields to mask, as passed to the constructor.
+	 *
+	 * @var array
+	 */
+	protected $masked_field_overrides = array();
+
+	/**
+	 * The masker used for logging.
+	 *
+	 * @var Masker|null
+	 */
+	protected $masker = null;
 
 	/**
 	 * Constructor.
@@ -115,12 +144,9 @@ abstract class Request {
 		$this->settings  = $settings;
 		$this->arguments = $arguments;
 
-		if ( ! empty( $masked_fields['request'] ) ) {
-			$this->request_fields_to_mask = array_merge( $this->request_fields_to_mask, $masked_fields['request'] );
-		}
-		if ( ! empty( $masked_fields['response'] ) ) {
-			$this->response_fields_to_mask = array_merge( $this->response_fields_to_mask, $masked_fields['response'] );
-		}
+		// The rules are built when the request is logged, so that a child class can still
+		// change the fields to mask after calling this constructor.
+		$this->masked_field_overrides = is_array( $masked_fields ) ? $masked_fields : array();
 	}
 
 	/**
@@ -216,20 +242,11 @@ abstract class Request {
 		$response_body = $this->mask_response( $response_body );
 		$code          = wp_remote_retrieve_response_code( $response );
 
-		// Parse the Request body into an array if its json format.
-		$request_body         = $request_args['body'] ?? '';
-		$decoded_body         = json_decode( $request_body );
-		$request_args['body'] = $decoded_body ?? $request_args['body'] ?? null;
+		// Parse the request body into an array if its json format, so the rules can reach into it.
+		$request_args['body'] = $this->decode_request_body( $request_args['body'] ?? null );
+		$request_args         = $this->mask_request_args( $request_args );
 
-		$request_args = $this->mask_request_args( $request_args );
-
-		$arguments = $this->arguments;
-		if ( isset( $arguments['username'] ) ) {
-			$arguments['username'] = '[REDACTED]';
-		}
-		if ( isset( $arguments['password'] ) ) {
-			$arguments['password'] = '[REDACTED]';
-		}
+		$arguments = $this->mask_arguments( $this->arguments );
 
 		// Log the response.
 		Logger::log(
@@ -252,20 +269,29 @@ abstract class Request {
 	}
 
 	/**
+	 * Decode a JSON request body. A body that is not JSON is returned untouched.
+	 *
+	 * @param mixed $request_body The raw request body.
+	 * @return mixed
+	 */
+	protected function decode_request_body( $request_body ) {
+		if ( ! is_string( $request_body ) || '' === $request_body ) {
+			return $request_body;
+		}
+
+		$decoded = json_decode( $request_body, true );
+
+		return ( JSON_ERROR_NONE === json_last_error() && is_array( $decoded ) ) ? $decoded : $request_body;
+	}
+
+	/**
 	 * Mask sensitive fields in the request args before logging.
 	 *
 	 * @param array $request_args The request args.
 	 * @return array
 	 */
 	protected function mask_request_args( $request_args ) {
-		if ( empty( $this->request_fields_to_mask ) ) {
-			return $request_args;
-		}
-		try {
-			return $this->sanitize_field( $request_args, $this->request_fields_to_mask );
-		} catch ( \Throwable $e ) {
-			return $request_args;
-		}
+		return $this->mask( $request_args, $this->get_request_mask_rules() );
 	}
 
 	/**
@@ -278,34 +304,82 @@ abstract class Request {
 		if ( is_wp_error( $response ) || empty( $response ) ) {
 			return $response;
 		}
-		if ( empty( $this->response_fields_to_mask ) ) {
-			return $response;
+
+		return $this->mask( $response, $this->get_response_mask_rules() );
+	}
+
+	/**
+	 * Mask sensitive fields in the request arguments before logging.
+	 *
+	 * @param array $arguments The request arguments.
+	 * @return array
+	 */
+	protected function mask_arguments( $arguments ) {
+		if ( empty( $arguments ) ) {
+			return $arguments;
 		}
+
+		return $this->mask( $arguments, $this->get_argument_mask_rules() );
+	}
+
+	/**
+	 * Mask one section of the log payload. Fails closed, so a failure costs us that
+	 * one section rather than leaving it unmasked in the log.
+	 *
+	 * @param mixed     $data The data to mask.
+	 * @param MaskRules $rules The rules to apply.
+	 * @return mixed
+	 */
+	protected function mask( $data, MaskRules $rules ) {
 		try {
-			return $this->sanitize_field( $response, $this->response_fields_to_mask );
+			return $this->get_masker()->mask( $data, $rules );
 		} catch ( \Throwable $e ) {
-			return $response;
+			return array( 'masking_error' => $e->getMessage() );
 		}
 	}
 
 	/**
-	 * Recursively mask a set of fields within a data array.
-	 * Array values in $fields_to_sanitize trigger recursive descent into the matching key.
-	 * String values name a field to replace with '*****' (empty values are left as-is).
+	 * The mask rules for the request args.
 	 *
-	 * @param array $data               The data array to sanitize.
-	 * @param array $fields_to_sanitize The fields to sanitize.
-	 * @return array
+	 * @return MaskRules
 	 */
-	protected function sanitize_field( $data, $fields_to_sanitize ) {
-		foreach ( $fields_to_sanitize as $key => $value ) {
-			if ( is_array( $value ) && isset( $data[ $key ] ) && is_array( $data[ $key ] ) ) {
-				$data[ $key ] = $this->sanitize_field( $data[ $key ], $value );
-			} elseif ( is_string( $value ) && isset( $data[ $value ] ) ) {
-				$data[ $value ] = empty( $data[ $value ] ) ? $data[ $value ] : '*****';
-			}
+	protected function get_request_mask_rules() {
+		return MaskRules::from_segments( array( 'headers', 'Authorization' ), new CredentialMask() )
+			->merge( MaskRules::from_config( $this->request_fields_to_mask ) )
+			->merge( MaskRules::from_config( $this->masked_field_overrides['request'] ?? array() ) );
+	}
+
+	/**
+	 * The mask rules for the response body.
+	 *
+	 * @return MaskRules
+	 */
+	protected function get_response_mask_rules() {
+		return MaskRules::from_config( $this->response_fields_to_mask )
+			->merge( MaskRules::from_config( $this->masked_field_overrides['response'] ?? array() ) );
+	}
+
+	/**
+	 * The mask rules for the request arguments.
+	 *
+	 * @return MaskRules
+	 */
+	protected function get_argument_mask_rules() {
+		return MaskRules::from_config( $this->argument_fields_to_mask )
+			->merge( MaskRules::from_config( $this->masked_field_overrides['arguments'] ?? array() ) );
+	}
+
+	/**
+	 * The masker used for logging. Override to change the mask format.
+	 *
+	 * @return Masker
+	 */
+	protected function get_masker() {
+		if ( null === $this->masker ) {
+			$this->masker = new Masker();
 		}
-		return $data;
+
+		return $this->masker;
 	}
 
 	/**
@@ -316,16 +390,8 @@ abstract class Request {
 	 * @return array The request data sanitized.
 	 */
 	protected function sanitize_request_args( $request_args ) {
-		// Do not log the authorization token.
-		foreach ( $request_args['headers'] as $header => $value ) {
-			if ( 'authorization' === strtolower( $header ) ) {
-				// If it is longer than 15 char., it most likely has a token. This is an assumption that is safe even if it is wrong.
-				$request_args['headers'][ $header ] = strlen( $value ) > 15 ? '[REDACTED]' : '[MISSING]';
-				break;
-			}
-		}
-
-		return $request_args;
+		// The Authorization header only, with the behaviour this method has always had.
+		return $this->mask( $request_args, MaskRules::from_segments( array( 'headers', 'Authorization' ), new CredentialMask() ) );
 	}
 
 	/**
