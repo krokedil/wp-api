@@ -1,0 +1,217 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method Krokedil\\WpApi\\Logger\:\:get_caller_string\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Logger.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Logger\:\:get_stack\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Logger.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Logger\:\:handle_wp_hook\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Logger.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Logger\:\:handle_wp_hook\(\) has parameter \$debug_line with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Logger.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Logger\:\:log\(\) has parameter \$log_data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Logger.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Logger\:\:process_debug_line\(\) has parameter \$debug_line with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Logger.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Logger\:\:process_debug_line\(\) has parameter \$stack with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Logger.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:__construct\(\) has parameter \$arguments with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:__construct\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:__construct\(\) has parameter \$masked_fields with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:__construct\(\) has parameter \$settings with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:get_error_message\(\) has parameter \$response with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:get_request_args\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:get_request_headers\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:log_response\(\) has parameter \$request_args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:log_response\(\) has parameter \$response with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:mask_arguments\(\) has parameter \$arguments with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:mask_arguments\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:mask_request_args\(\) has parameter \$request_args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:mask_request_args\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:mask_response\(\) has parameter \$response with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:mask_response\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:process_response\(\) has parameter \$request_args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:process_response\(\) has parameter \$response with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:process_response\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:request\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:sanitize_request_args\(\) has parameter \$request_args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Method Krokedil\\WpApi\\Request\:\:sanitize_request_args\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Property Krokedil\\WpApi\\Request\:\:\$argument_fields_to_mask type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Property Krokedil\\WpApi\\Request\:\:\$arguments type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Property Krokedil\\WpApi\\Request\:\:\$config type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Property Krokedil\\WpApi\\Request\:\:\$defaults type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Property Krokedil\\WpApi\\Request\:\:\$masked_field_overrides type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Property Krokedil\\WpApi\\Request\:\:\$request_fields_to_mask type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Property Krokedil\\WpApi\\Request\:\:\$response_fields_to_mask type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
+
+		-
+			message: '#^Property Krokedil\\WpApi\\Request\:\:\$settings type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Request.php
