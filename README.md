@@ -3,7 +3,7 @@
 
 ### Requirements
 
-- PHP >=7.1
+- PHP >=7.4
 
 ### Installation
 
@@ -95,6 +95,62 @@ protected function get_request_args() {
 If you need to add a body, that can be done by adding the `body` key with the value of the body, generally as a json encoded string.
 
 `get_error_message( $response )` - Since all APIs handle errors differently, this method should parse the response body and extract any error messages that might be present. This should then return a WP_Error object with the error message, and any other data that might be useful for debugging.
+
+### Masking sensitive data
+
+Everything the request class logs is masked first. The fields to mask are declared as dot separated paths, and `*` matches every key at that level, which is how you reach into a list.
+
+```php
+class MyRequest extends Request {
+	protected $request_fields_to_mask = array(
+		'headers.Authorization',
+		'body.billing_address.email',
+		'body.order_lines.*.reference',
+	);
+
+	protected $response_fields_to_mask = array(
+		'client_token',
+		'billing_address.email',
+	);
+}
+```
+
+The same rules can be passed as the fourth constructor argument instead, which is useful when they depend on something only the caller knows:
+
+```php
+parent::__construct(
+	$config,
+	$settings,
+	$arguments,
+	array(
+		'request'  => array( 'headers.X-Api-Key' ),
+		'response' => array( 'session.token' ),
+	)
+);
+```
+
+Rules passed that way are **added** to the ones the class declares, so the built in `headers.Authorization` mask always stays in place. The nested array format is still accepted, but the dot paths above are the format to write new rules in.
+
+Things worth knowing:
+
+- The masker never creates a key. A rule pointing at a field that was not sent changes nothing.
+- A field that was sent becomes `[REDACTED]`, a field that was sent empty becomes `[MISSING]`. That distinction is usually the reason you are reading the log. The Authorization header uses `[REDACTED]` above 15 characters and `[MISSING]` below, so a request made without credentials is still recognisable.
+- Masking reaches into JSON encoded values, so a rule under `body` works whether the body is an array or the JSON string that was actually sent.
+- Header names are matched case insensitively.
+- If masking fails, the section it failed on is replaced with an error marker. It never falls back to logging the unmasked data.
+- On top of that, `Logger` scrubs every log entry by key name (`password`, `secret`, `shared_secret`, `authorization`, `api_key`, ...) and refuses to expand objects. This is also what protects the stack trace when `extended_debugging` is on. Call `Logger::set_scrubber( new SensitiveValueScrubber( array( 'my_key' ) ) )` to widen the list.
+
+The classes in `src/Masking/` never call a WordPress or WooCommerce function, which is what lets them be tested on their own. Keep it that way.
+
+### Running the tests
+
+```bash
+composer install
+composer test
+composer phpcs
+```
+
+The test bootstrap loads nothing but the Composer autoloader. If it ever needs a stub, something has leaked into `src/Masking/`.
 
 ### Recommendations
 The recommended the class that extends the library class an abstract class that can also be extended by more direct or concrete implementations. This will alow you to have a lot of different request classes that can be used for different purposes, but still share the same base functionality. For example setting the same config to be reused for multiple requests, since most likely they will always be the same, or define the method to calculate the auth just once in your own base abstract class.
