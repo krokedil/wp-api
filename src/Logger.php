@@ -7,6 +7,8 @@
 
 namespace Krokedil\WpApi;
 
+use Krokedil\WpApi\Masking\SensitiveValueScrubber;
+
 /**
  * Logger class for the api requests. Used the WooCommerce logger.
  */
@@ -14,9 +16,39 @@ class Logger {
 	/**
 	 * WC Logger instance.
 	 *
-	 * @var \WC_Logger $log
+	 * @var \WC_Logger|null $log
 	 */
 	public static $log;
+
+	/**
+	 * The scrubber used as a last net before anything is written to the log.
+	 *
+	 * @var SensitiveValueScrubber|null
+	 */
+	private static $scrubber = null;
+
+	/**
+	 * Set the scrubber, to widen the list of sensitive key names.
+	 *
+	 * @param SensitiveValueScrubber|null $scrubber The scrubber to use, or null to reset to the default.
+	 * @return void
+	 */
+	public static function set_scrubber( ?SensitiveValueScrubber $scrubber = null ) {
+		self::$scrubber = $scrubber;
+	}
+
+	/**
+	 * The scrubber to use.
+	 *
+	 * @return SensitiveValueScrubber
+	 */
+	public static function get_scrubber() {
+		if ( null === self::$scrubber ) {
+			self::$scrubber = new SensitiveValueScrubber();
+		}
+
+		return self::$scrubber;
+	}
 
 	/**
 	 * Log the request with all the passed data.
@@ -31,7 +63,8 @@ class Logger {
 			self::$log = new \WC_Logger();
 		}
 
-		self::$log->add( $slug, wp_json_encode( $log_data ) );
+		// A last net under whatever the caller already masked.
+		self::$log->add( $slug, wp_json_encode( self::get_scrubber()->scrub( $log_data ) ) );
 	}
 
 	/**
@@ -45,7 +78,7 @@ class Logger {
 		$stack      = array();
 
 		// Skip the first 4 items in the stack trace to skip to the actual caller.
-		$count      = count( $debug_data );
+		$count = count( $debug_data );
 		for ( $i = 5; $i < $count; $i++ ) {
 			self::process_debug_line( $stack, $debug_data[ $i ], $extended_debugging );
 		}
@@ -70,9 +103,9 @@ class Logger {
 		self::handle_wp_hook( $class, $function, $args, $debug_line );
 
 		// Construct a caller string.
-		$caller  = self::get_caller_string( $class, $type, $function, $args, $extended_debugging );
+		$caller = self::get_caller_string( $class, $type, $function, $args, $extended_debugging );
 
-		$row     = array(
+		$row = array(
 			'file'     => $debug_line['file'] ?? '',
 			'line'     => $debug_line['line'] ?? '',
 			'function' => $caller,
@@ -93,13 +126,16 @@ class Logger {
 	 */
 	private static function get_caller_string( $class, $type, $function, $args, $extended_debugging ) {
 		// Construct a caller string.
-		$caller = $class . $type . $function;
+		$caller  = $class . $type . $function;
 		$caller .= '(';
 		// Only add data if we are doing extended debugging.
 		$caller .= $extended_debugging ? implode(
 			', ',
 			array_map(
-				function ($value) {
+				function ( $value ) {
+					// Scrub before encoding, while the values are still structured.
+					$value = self::get_scrubber()->scrub( $value );
+
 					// Json encode all values so that we can see what objects and arrays are passed. Dont escape anything, partial output on errors, and ignore slashes and line terminators.
 					return wp_json_encode( $value, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_UNESCAPED_LINE_TERMINATORS | JSON_UNESCAPED_SLASHES );
 				},
