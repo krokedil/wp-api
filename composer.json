@@ -3,16 +3,51 @@
     "description": "A composer library for Krokedil WordPress plugins that contains classes for working with wp_remote_request to setup request classes. Also uses the WooCommerce logger to log request reponses.",
     "type": "library",
     "version": "1.1.1",
+    "require": {
+        "php": ">=7.4"
+    },
     "require-dev": {
-        "php": "~7.1 || ~8.0",
         "php-stubs/wordpress-stubs": "^6.1",
-        "php-stubs/woocommerce-stubs": "^7.2"
+        "php-stubs/woocommerce-stubs": "^7.2",
+        "phpunit/phpunit": "^9.6",
+        "wp-coding-standards/wpcs": "^3.0",
+        "phpcompatibility/php-compatibility": "^9.3",
+        "szepeviktor/phpstan-wordpress": "^2.0"
     },
     "license": "GPL-V2",
     "autoload": {
         "psr-4": {
             "Krokedil\\WpApi\\": "src/"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Krokedil\\WpApi\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "platform": {
+            "php": "7.4"
+        },
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "scripts": {
+        "test": "@php ./vendor/bin/phpunit --configuration phpunit.xml",
+        "test-coverage-html": "@php ./vendor/bin/phpunit --configuration phpunit.xml --coverage-html coverage",
+        "phpcs": "./vendor/bin/phpcs --standard=phpcs.xml --extensions=php --ignore=vendor/,tests/",
+        "phpcbf": "./vendor/bin/phpcbf --standard=phpcs.xml --extensions=php --ignore=vendor/,tests/",
+        "phpstan": "./vendor/bin/phpstan analyse -c phpstan.neon"
+    },
+    "archive": {
+        "exclude": [
+            "tests/*",
+            "phpunit.xml",
+            "phpcs.xml",
+            ".gitignore",
+            ".gitattributes"
+        ]
     },
     "authors": [
         {

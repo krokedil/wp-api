@@ -1,2 +1,27 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Based on the WooCommerce .gitattributes file: https://github.com/woocommerce/woocommerce/blob/trunk/.gitattributes
+*       text=auto
+
+# Force LF In Configuration Files
+*.md    text    eol=lf
+*.json  text    eol=lf
+*.yml   text    eol=lf
+
+# Force LF In Code Files
+*.php   text    eol=lf
+*.sh    text    eol=lf
+*.js    text    eol=lf
+*.jsx   text    eol=lf
+*.ts    text    eol=lf
+*.tsx   text    eol=lf
+*.css   text    eol=lf
+*.scss  text    eol=lf
+
+# Keep the development tooling out of the installed package.
+/tests                 export-ignore
+/.github               export-ignore
+/phpunit.xml           export-ignore
+/phpcs.xml             export-ignore
+/.gitattributes        export-ignore
+/.gitignore            export-ignore
+/phpstan.neon          export-ignore
+/phpstan-baseline.neon export-ignore
