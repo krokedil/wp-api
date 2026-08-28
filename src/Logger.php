@@ -124,7 +124,7 @@ class Logger {
 	 * @param bool   $extended_debugging Whether to include the arguments in the stack trace.
 	 * @return string
 	 */
-	private static function get_caller_string( $class, $type, $function, $args, $extended_debugging ) {
+	private static function get_caller_string( $class, $type, $function, $args, $extended_debugging ) { // phpcs:ignore -- $function and $class are reserved keywords, but intentionally used here.
 		// Construct a caller string.
 		$caller  = $class . $type . $function;
 		$caller .= '(';
@@ -156,7 +156,7 @@ class Logger {
 	 * @param array  $debug_line The debug line.
 	 * @return void
 	 */
-	private static function handle_wp_hook( $class, $function, &$args, $debug_line ) {
+	private static function handle_wp_hook( $class, $function, &$args, $debug_line ) { // phpcs:ignore -- $function and $class are reserved keywords, but intentionally used here.
 		if ( 'WP_Hook' === $class && in_array( $function, array( 'apply_filters', 'do_action' ), true ) ) {
 			$wp_hook = $debug_line['object'] ?? null;
 			if ( $wp_hook instanceof \WP_Hook ) {
@@ -190,7 +190,7 @@ class Logger {
 	 * @param mixed $object The potential class object.
 	 * @return string
 	 */
-	private static function get_name_of_hook_function( $object ) {
+	private static function get_name_of_hook_function( $object ) { // phpcs:ignore -- $object is a reserved keyword, but intentionally used here.
 		// If the object is null, reutrn an empty string.
 		if ( null === $object ) {
 			return '';
