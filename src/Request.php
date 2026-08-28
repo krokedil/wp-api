@@ -137,7 +137,7 @@ abstract class Request {
 	 * @param array $config       Configuration array.
 	 * @param array $settings     Plugin settings.
 	 * @param array $arguments    Request arguments.
-	 * @param array $masked_fields Optional extra fields to mask, with keys 'request' and/or 'response'.
+	 * @param array $masked_fields Optional extra fields to mask, with the keys 'request', 'response' and/or 'arguments'.
 	 */
 	public function __construct( $config = array(), $settings = array(), $arguments = array(), $masked_fields = array() ) {
 		$this->config    = wp_parse_args( $config, $this->defaults );

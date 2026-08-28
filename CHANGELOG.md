@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The request body was decoded to an object before masking, so no rule under `body` ever matched.
 * Fields passed to the constructor replaced the built in Authorization mask instead of being added to it.
 * Header names are matched case insensitively again.
+* Merging rules for the same path no longer drops the format of the earlier rule when the later one does not bring its own, which kept the built in `CredentialMask` from being replaced on the Authorization header.
 * Values of `0`, `'0'` and `false` were left unmasked.
 * `sanitize_request_args()` no longer errors on a request that has no headers.
 

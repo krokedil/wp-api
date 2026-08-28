@@ -36,8 +36,8 @@
     "scripts": {
         "test": "@php ./vendor/bin/phpunit --configuration phpunit.xml",
         "test-coverage-html": "@php ./vendor/bin/phpunit --configuration phpunit.xml --coverage-html coverage",
-        "phpcs": "./vendor/bin/phpcs --standard=phpcs.xml --extensions=php --ignore=vendor/,tests/",
-        "phpcbf": "./vendor/bin/phpcbf --standard=phpcs.xml --extensions=php --ignore=vendor/,tests/",
+        "phpcs": "./vendor/bin/phpcs --standard=phpcs.xml --extensions=php",
+        "phpcbf": "./vendor/bin/phpcbf --standard=phpcs.xml --extensions=php",
         "phpstan": "./vendor/bin/phpstan analyse -c phpstan.neon"
     },
     "archive": {

@@ -77,7 +77,7 @@ class Logger {
 		$debug_data = debug_backtrace(); // phpcs:ignore WordPress.PHP.DevelopmentFunctions -- Data is not used for display.
 		$stack      = array();
 
-		// Skip the first 4 items in the stack trace to skip to the actual caller.
+		// Skip the first 5 items in the stack trace to skip to the actual caller.
 		$count = count( $debug_data );
 		for ( $i = 5; $i < $count; $i++ ) {
 			self::process_debug_line( $stack, $debug_data[ $i ], $extended_debugging );

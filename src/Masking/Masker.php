@@ -177,8 +177,8 @@ final class Masker {
 	 * Resolve a path segment against a node. An exact match wins, then a case
 	 * insensitive one, since header names are case insensitive by spec.
 	 *
-	 * @param mixed        $node The node to look in.
-	 * @param string       $segment The path segment.
+	 * @param mixed  $node The node to look in.
+	 * @param string $segment The path segment.
 	 * @return string|int|null The real key, or null when the node has no such key.
 	 */
 	private function resolve_key( $node, $segment ) {
@@ -242,9 +242,9 @@ final class Masker {
 	/**
 	 * Write a key to a node without touching the caller's data.
 	 *
-	 * @param mixed        $node The node.
-	 * @param string|int   $key The key.
-	 * @param mixed        $value The value to set.
+	 * @param mixed      $node The node.
+	 * @param string|int $key The key.
+	 * @param mixed      $value The value to set.
 	 * @return mixed
 	 */
 	private function node_set( $node, $key, $value ) {

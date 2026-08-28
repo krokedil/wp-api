@@ -149,15 +149,28 @@ final class MaskRules {
 	 * Merge another set of rules into this one, returning a new instance. The union
 	 * of both sets, so a caller supplied rule adds to the built in ones.
 	 *
+	 * A duplicated path keeps the later format, but only when the later rule brings
+	 * one. A rule declared without a format asks for the masker default, which must
+	 * not silently replace a format that was picked on purpose, such as the built in
+	 * CredentialMask on the Authorization header.
+	 *
 	 * @param mixed $other Another MaskRules, or anything from_config() accepts.
 	 * @return self
 	 * @throws InvalidArgumentException If a path is empty or too long.
 	 */
 	public function merge( $other ) {
 		$other = self::from_config( $other );
+		$rules = $this->rules;
 
-		// Keyed by canonical path, so a duplicated path keeps the later format.
-		return new self( array_merge( $this->rules, $other->rules ) );
+		foreach ( $other->rules as $path => $rule ) {
+			if ( null === $rule['format'] && isset( $rules[ $path ]['format'] ) ) {
+				$rule['format'] = $rules[ $path ]['format'];
+			}
+
+			$rules[ $path ] = $rule;
+		}
+
+		return new self( $rules );
 	}
 
 	/**
@@ -192,7 +205,7 @@ final class MaskRules {
 	 * a dot path, a key with an array value is a container.
 	 *
 	 * @param array<mixed> $config The config to walk.
-	 * @param string[] $prefix The segments collected so far.
+	 * @param string[]     $prefix The segments collected so far.
 	 * @return array<string[]> A list of segment arrays.
 	 */
 	private static function parse( array $config, array $prefix ) {

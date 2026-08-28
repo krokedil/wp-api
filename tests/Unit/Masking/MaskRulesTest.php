@@ -76,6 +76,16 @@ class MaskRulesTest extends TestCase {
 		$this->assertSame( array( 'headers.Authorization' ), $rules->to_paths() );
 	}
 
+	public function test_a_later_rule_without_a_format_keeps_the_earlier_one() {
+		// The regression that matters: the built in CredentialMask on the Authorization
+		// header used to be replaced by the plain default rule declared for the same path.
+		$rules = MaskRules::from_segments( array( 'headers', 'Authorization' ), new CredentialMask() )
+			->merge( MaskRules::from_config( array( 'headers.Authorization' ) ) );
+
+		$all = $rules->all();
+		$this->assertInstanceOf( CredentialMask::class, $all['headers.Authorization']['format'] );
+	}
+
 	public function test_the_later_format_wins_for_a_duplicated_path() {
 		$rules = MaskRules::from_config( array( 'headers.Authorization' ), new DefaultMask() )
 			->merge( MaskRules::from_config( array( 'headers.Authorization' ), new CredentialMask() ) );

@@ -123,11 +123,14 @@ parent::__construct(
 	$settings,
 	$arguments,
 	array(
-		'request'  => array( 'headers.X-Api-Key' ),
-		'response' => array( 'session.token' ),
+		'request'   => array( 'headers.X-Api-Key' ),
+		'response'  => array( 'session.token' ),
+		'arguments' => array( 'merchant_reference' ),
 	)
 );
 ```
+
+The `arguments` key masks the request arguments the class was constructed with, which are logged next to the request itself.
 
 Rules passed that way are **added** to the ones the class declares, so the built in `headers.Authorization` mask always stays in place. The nested array format is still accepted, but the dot paths above are the format to write new rules in.
 
