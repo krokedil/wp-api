@@ -16,22 +16,22 @@ class KeyMasker {
 	/**
 	 * Placeholder for a value that was present.
 	 */
-	const REDACTED = '[REDACTED]';
+	public const REDACTED = '[REDACTED]';
 
 	/**
 	 * Placeholder for a value that was there, but empty.
 	 */
-	const MISSING = '[MISSING]';
+	public const MISSING = '[MISSING]';
 
 	/**
 	 * Placeholder for a section that could not be masked.
 	 */
-	const FAILED = '[MASKING FAILED]';
+	public const FAILED = '[MASKING FAILED]';
 
 	/**
 	 * How many levels to walk before masking whatever is left unreached.
 	 */
-	const MAX_DEPTH = 12;
+	public const MAX_DEPTH = 12;
 
 	/**
 	 * Key name fragments masked out of the box, matched case insensitively as
@@ -50,7 +50,6 @@ class KeyMasker {
 		'credential',
 		'private_key',
 		'signature',
-		'session_id',
 		'cookie',
 		'csrf',
 		'cvv',
