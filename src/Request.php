@@ -8,11 +8,18 @@
 namespace Krokedil\WpApi;
 
 use Krokedil\WpApi\Logger;
+use Krokedil\WpApi\KeyMasker;
+use Krokedil\WpApi\FieldMasker;
 
 /**
  * Base request class for the package.
  */
 abstract class Request {
+	/**
+	 * The reserved rule key that turns a rule into an allow list.
+	 */
+	const MASK_KEEP = FieldMasker::KEEP;
+
 	/**
 	 * Config values.
 	 *
@@ -70,14 +77,70 @@ abstract class Request {
 	public $method = 'GET';
 
 	/**
+	 * Fields to mask in the request args before logging. Keys map to a list of field names or
+	 * to nested arrays, matched case insensitively wherever the name appears below that level.
+	 * The reserved 'keep' key turns a rule into an allow list, masking every key it does not name.
+	 *
+	 * Example:
+	 * array(
+	 *     'headers' => array( 'Authorization' ),
+	 *     'body'    => array(
+	 *         'billing_address' => array( 'email', 'phone' ),
+	 *         'customer'        => array( 'keep' => array( 'type' ) ),
+	 *         'attachment'      => 'mask',
+	 *     ),
+	 * )
+	 *
+	 * @var array
+	 */
+	protected $request_fields_to_mask = array(
+		'headers' => array( 'Authorization' ),
+	);
+
+	/**
+	 * Fields to mask in the response body before logging. Uses the same structure as the
+	 * request fields, including the 'keep' allow list.
+	 *
+	 * Example:
+	 * array(
+	 *     'client_token',
+	 *     'billing_address' => array( 'email', 'phone' ),
+	 * )
+	 *
+	 * @var array
+	 */
+	protected $response_fields_to_mask = array();
+
+	/**
+	 * Fields to mask in the request arguments before logging, same structure as above.
+	 *
+	 * @var array
+	 */
+	protected $argument_fields_to_mask = array( 'username', 'password' );
+
+	/**
 	 * Constructor.
 	 *
-	 * @param array $config Configuration array.
+	 * @param array $config       Configuration array.
+	 * @param array $settings     Plugin settings.
+	 * @param array $arguments    Request arguments.
+	 * @param array $masked_fields Optional extra fields to mask, with keys 'request', 'response' and/or 'arguments'.
+	 *                             Merged into the configured fields, so an allow list can be passed here as well.
 	 */
-	public function __construct( $config = array(), $settings = array(), $arguments = array() ) {
+	public function __construct( $config = array(), $settings = array(), $arguments = array(), $masked_fields = array() ) {
 		$this->config    = wp_parse_args( $config, $this->defaults );
 		$this->settings  = $settings;
 		$this->arguments = $arguments;
+
+		if ( ! empty( $masked_fields['request'] ) ) {
+			$this->request_fields_to_mask = FieldMasker::merge_config( $this->request_fields_to_mask, $masked_fields['request'] );
+		}
+		if ( ! empty( $masked_fields['response'] ) ) {
+			$this->response_fields_to_mask = FieldMasker::merge_config( $this->response_fields_to_mask, $masked_fields['response'] );
+		}
+		if ( ! empty( $masked_fields['arguments'] ) ) {
+			$this->argument_fields_to_mask = FieldMasker::merge_config( $this->argument_fields_to_mask, $masked_fields['arguments'] );
+		}
 	}
 
 	/**
@@ -170,22 +233,8 @@ abstract class Request {
 
 		// Get the response body if its not a WP_Error.
 		$response_body = ! is_wp_error( $response ) ? json_decode( wp_remote_retrieve_body( $response ), true ) : array();
+		$response_body = $this->mask_response( $response_body );
 		$code          = wp_remote_retrieve_response_code( $response );
-
-		// Parse the Request body into an array if its json format.
-		$request_body         = $request_args['body'] ?? '';
-		$decoded_body         = json_decode( $request_body );
-		$request_args['body'] = $decoded_body ?? $request_args['body'] ?? null;
-
-		$request_args = $this->sanitize_request_args( $request_args );
-
-		$arguments = $this->arguments;
-		if ( isset( $arguments['username'] ) ) {
-			$arguments['username'] = '[REDACTED]';
-		}
-		if ( isset( $arguments['password'] ) ) {
-			$arguments['password'] = '[REDACTED]';
-		}
 
 		// Log the response.
 		Logger::log(
@@ -193,9 +242,9 @@ abstract class Request {
 			array(
 				'type'           => $this->method,
 				'title'          => $this->log_title,
-				'arguments'      => $arguments,
-				'request'        => $request_args,
-				'request_url'    => $request_url,
+				'arguments'      => $this->mask_arguments( $this->arguments ),
+				'request'        => $this->mask_request_args( $request_args ),
+				'request_url'    => $this->get_masked_request_url( $request_url ),
 				'response'       => array(
 					'body' => $response_body,
 					'code' => $code,
@@ -208,22 +257,110 @@ abstract class Request {
 	}
 
 	/**
+	 * Mask sensitive fields in the request args before logging. Reading the configuration
+	 * happens inside the guard, so a broken config costs the section and not the request.
+	 *
+	 * @param array $request_args The request args.
+	 * @return array|string The masked request args, or the failure marker.
+	 */
+	protected function mask_request_args( $request_args ) {
+		try {
+			// Decode the json body that was really sent, so the rules can reach into it and
+			// the log holds a readable structure rather than an escaped string.
+			if ( isset( $request_args['body'] ) && is_string( $request_args['body'] ) ) {
+				$decoded              = json_decode( $request_args['body'], true );
+				$request_args['body'] = is_array( $decoded ) ? $decoded : $request_args['body'];
+			}
+
+			$fields = $this->request_fields_to_mask;
+			return empty( $fields ) ? $request_args : $this->sanitize_field( $request_args, $fields );
+		} catch ( \Throwable $e ) {
+			return KeyMasker::FAILED;
+		}
+	}
+
+	/**
+	 * Mask sensitive fields in the response body before logging.
+	 *
+	 * @param array|\WP_Error $response The decoded response body.
+	 * @return array|string|\WP_Error The masked response body, or the failure marker.
+	 */
+	protected function mask_response( $response ) {
+		if ( is_wp_error( $response ) || empty( $response ) ) {
+			return $response;
+		}
+
+		try {
+			$fields = $this->response_fields_to_mask;
+			return empty( $fields ) ? $response : $this->sanitize_field( $response, $fields );
+		} catch ( \Throwable $e ) {
+			return KeyMasker::FAILED;
+		}
+	}
+
+	/**
+	 * Mask sensitive fields in the request arguments before logging.
+	 *
+	 * @param array $arguments The request arguments.
+	 * @return array|string The masked arguments, or the failure marker.
+	 */
+	protected function mask_arguments( $arguments ) {
+		try {
+			$fields = $this->argument_fields_to_mask;
+			return empty( $fields ) ? $arguments : $this->sanitize_field( $arguments, $fields );
+		} catch ( \Throwable $e ) {
+			return KeyMasker::FAILED;
+		}
+	}
+
+	/**
+	 * Mask the request URL before logging, unchanged by default. Override it when the API
+	 * addresses a resource by a token in the path, such as /authorizations/{token}/order.
+	 *
+	 * @param string $request_url The request URL.
+	 * @return string
+	 */
+	protected function mask_request_url( $request_url ) {
+		return $request_url;
+	}
+
+	/**
+	 * Call mask_request_url() without letting an override that throws kill the API call.
+	 * The fallback is a redaction, never the raw URL.
+	 *
+	 * @param string $request_url The request URL.
+	 * @return string
+	 */
+	private function get_masked_request_url( $request_url ) {
+		try {
+			$masked = $this->mask_request_url( $request_url );
+			return is_string( $masked ) ? $masked : KeyMasker::FAILED;
+		} catch ( \Throwable $e ) {
+			return KeyMasker::FAILED;
+		}
+	}
+
+	/**
+	 * Recursively mask a set of fields within a data array. A rule keeps matching below the
+	 * level it was declared on, so a container nested in a list is treated like one at the root.
+	 *
+	 * @param array $data               The data array to sanitize.
+	 * @param array $fields_to_sanitize The fields to sanitize.
+	 * @return array
+	 */
+	protected function sanitize_field( $data, $fields_to_sanitize ) {
+		return FieldMasker::mask( $data, $fields_to_sanitize );
+	}
+
+	/**
 	 * Remove sensitive data from the log.
 	 *
+	 * @deprecated Use mask_request_args() instead. Kept for backward compatibility.
 	 * @param array $request_args The request data to sanitize.
 	 * @return array The request data sanitized.
 	 */
 	protected function sanitize_request_args( $request_args ) {
-		// Do not log the authorization token.
-		foreach ( $request_args['headers'] as $header => $value ) {
-			if ( 'authorization' === strtolower( $header ) ) {
-				// If it is longer than 15 char., it most likely has a token. This is an assumption that is safe even if it is wrong.
-				$request_args['headers'][ $header ] = strlen( $value ) > 15 ? '[REDACTED]' : '[MISSING]';
-				break;
-			}
-		}
-
-		return $request_args;
+		return $this->sanitize_field( $request_args, array( 'headers' => array( 'Authorization' ) ) );
 	}
 
 	/**

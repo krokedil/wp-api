@@ -1,0 +1,15 @@
+parameters:
+  level: 5
+  phpVersion: 70400
+  # A child class can return anything from an overridden seam, whatever the docblock says.
+  treatPhpDocTypesAsCertain: false
+
+  paths:
+    - src
+
+  scanDirectories:
+    - vendor/php-stubs
+
+  bootstrapFiles:
+    - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+    - vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
