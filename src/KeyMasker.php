@@ -200,7 +200,7 @@ class KeyMasker {
 
 		$patterns = array(
 			// An Authorization header value, with the scheme left readable.
-			'/^(Basic|Bearer)\s+\S+$/i'   => '$1 ' . self::REDACTED,
+			'/^(Basic|Bearer)\s+\S+$/i'     => '$1 ' . self::REDACTED,
 			// A JWT, which is what most hosted checkout tokens look like.
 			'/\bey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]+)?/' => self::REDACTED,
 			// A long unbroken base64 run, which no readable field ever contains.

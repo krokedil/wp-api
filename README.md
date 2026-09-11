@@ -162,6 +162,19 @@ parent::__construct(
 );
 ```
 
+A plugin that logs from somewhere other than a `Request` subclass, such as a second request
+layer of its own, can run the same pass directly. `Krokedil\WpApi\FieldMasker` is where the
+rules are compiled and applied, and `Request` is only one of its callers.
+
+```php
+use Krokedil\WpApi\FieldMasker;
+
+$body = FieldMasker::mask(
+    $body,
+    array( 'billing_address' => array( 'keep' => array( 'postal_code', 'city' ) ) )
+);
+```
+
 #### The key name pass
 
 The configured pass can only cover shapes someone predicted. `Krokedil\WpApi\KeyMasker`

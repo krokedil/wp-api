@@ -9,6 +9,7 @@ namespace Krokedil\WpApi;
 
 use Krokedil\WpApi\Logger;
 use Krokedil\WpApi\KeyMasker;
+use Krokedil\WpApi\FieldMasker;
 
 /**
  * Base request class for the package.
@@ -17,7 +18,7 @@ abstract class Request {
 	/**
 	 * The reserved rule key that turns a rule into an allow list.
 	 */
-	const MASK_KEEP = 'keep';
+	const MASK_KEEP = FieldMasker::KEEP;
 
 	/**
 	 * Config values.
@@ -132,13 +133,13 @@ abstract class Request {
 		$this->arguments = $arguments;
 
 		if ( ! empty( $masked_fields['request'] ) ) {
-			$this->request_fields_to_mask = self::merge_mask_config( $this->request_fields_to_mask, $masked_fields['request'] );
+			$this->request_fields_to_mask = FieldMasker::merge_config( $this->request_fields_to_mask, $masked_fields['request'] );
 		}
 		if ( ! empty( $masked_fields['response'] ) ) {
-			$this->response_fields_to_mask = self::merge_mask_config( $this->response_fields_to_mask, $masked_fields['response'] );
+			$this->response_fields_to_mask = FieldMasker::merge_config( $this->response_fields_to_mask, $masked_fields['response'] );
 		}
 		if ( ! empty( $masked_fields['arguments'] ) ) {
-			$this->argument_fields_to_mask = self::merge_mask_config( $this->argument_fields_to_mask, $masked_fields['arguments'] );
+			$this->argument_fields_to_mask = FieldMasker::merge_config( $this->argument_fields_to_mask, $masked_fields['arguments'] );
 		}
 	}
 
@@ -348,129 +349,7 @@ abstract class Request {
 	 * @return array
 	 */
 	protected function sanitize_field( $data, $fields_to_sanitize ) {
-		$rules = self::compile_mask_rules( $fields_to_sanitize );
-		return self::mask_node( $data, $rules, $rules['keep'], 0 );
-	}
-
-	/**
-	 * Turn the nested configuration array into rules that can be matched by key name.
-	 *
-	 * @param array $fields The configured fields.
-	 * @return array A rule set with the keys 'mask', 'children' and 'keep'.
-	 */
-	private static function compile_mask_rules( $fields ) {
-		$rules = array(
-			'mask'     => array(),
-			'children' => array(),
-			'keep'     => null,
-		);
-
-		foreach ( (array) $fields as $key => $value ) {
-			// A list entry names a field to mask.
-			if ( is_int( $key ) ) {
-				if ( is_string( $value ) ) {
-					$rules['mask'][ strtolower( $value ) ] = true;
-				}
-				continue;
-			}
-
-			$name = strtolower( (string) $key );
-
-			if ( self::MASK_KEEP === $name && is_array( $value ) ) {
-				$rules['keep'] = array();
-				foreach ( $value as $keep ) {
-					$rules['keep'][ strtolower( (string) $keep ) ] = true;
-				}
-				continue;
-			}
-
-			if ( is_array( $value ) ) {
-				$rules['children'][ $name ] = self::compile_mask_rules( $value );
-			} else {
-				// A named field with anything but an array, such as 'attachment' => 'mask'.
-				$rules['mask'][ $name ] = true;
-			}
-		}
-
-		return $rules;
-	}
-
-	/**
-	 * Walk one node of the data and mask what the rules in scope name.
-	 *
-	 * @param mixed      $data  The node.
-	 * @param array      $scope The rules that are in scope here, which is every rule declared on this node or above it.
-	 * @param array|null $keep  The allow list for this container, or null if it is not allow listed.
-	 * @param int        $depth How deep we already are.
-	 * @return mixed
-	 */
-	private static function mask_node( $data, $scope, $keep, $depth ) {
-		if ( $depth > KeyMasker::MAX_DEPTH ) {
-			return KeyMasker::REDACTED;
-		}
-
-		if ( ! is_array( $data ) ) {
-			return $data;
-		}
-
-		foreach ( $data as $key => $value ) {
-			// A list entry has no name of its own, so it is treated as the container it sits in.
-			if ( is_int( $key ) ) {
-				$data[ $key ] = self::mask_node( $value, $scope, $keep, $depth + 1 );
-				continue;
-			}
-
-			$name = strtolower( (string) $key );
-
-			if ( isset( $scope['mask'][ $name ] ) || ( null !== $keep && ! isset( $keep[ $name ] ) ) ) {
-				$data[ $key ] = KeyMasker::placeholder( $value );
-				continue;
-			}
-
-			if ( ! is_array( $value ) ) {
-				continue;
-			}
-
-			$child = $scope['children'][ $name ] ?? null;
-			if ( null === $child ) {
-				$data[ $key ] = self::mask_node( $value, $scope, null, $depth + 1 );
-				continue;
-			}
-
-			// Rules stay in scope as we descend, so a kept key is still described by
-			// the rules declared beside it, in whichever order.
-			$next = array(
-				'mask'     => $child['mask'] + $scope['mask'],
-				'children' => $child['children'] + $scope['children'],
-			);
-
-			$data[ $key ] = self::mask_node( $value, $next, $child['keep'], $depth + 1 );
-		}
-
-		return $data;
-	}
-
-	/**
-	 * Merge extra masking configuration into the configured fields, keeping both.
-	 *
-	 * @param array $base  The configured fields.
-	 * @param array $extra The extra fields to merge in.
-	 * @return array
-	 */
-	private static function merge_mask_config( $base, $extra ) {
-		foreach ( (array) $extra as $key => $value ) {
-			if ( is_int( $key ) ) {
-				if ( ! in_array( $value, $base, true ) ) {
-					$base[] = $value;
-				}
-			} elseif ( is_array( $value ) && isset( $base[ $key ] ) && is_array( $base[ $key ] ) ) {
-				$base[ $key ] = self::merge_mask_config( $base[ $key ], $value );
-			} else {
-				$base[ $key ] = $value;
-			}
-		}
-
-		return $base;
+		return FieldMasker::mask( $data, $fields_to_sanitize );
 	}
 
 	/**
