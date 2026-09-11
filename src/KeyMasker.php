@@ -204,7 +204,7 @@ class KeyMasker {
 			// A JWT, which is what most hosted checkout tokens look like.
 			'/\bey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]+)?/' => self::REDACTED,
 			// A long unbroken base64 run, which no readable field ever contains.
-			'/[A-Za-z0-9+\/]{40,}={0,2}/' => self::REDACTED,
+			'/^[A-Za-z0-9+\/]{40,}={0,2}$/' => self::REDACTED,
 		);
 
 		foreach ( $patterns as $pattern => $replacement ) {
