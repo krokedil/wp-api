@@ -34,8 +34,8 @@ class KeyMasker {
 	public const MAX_DEPTH = 12;
 
 	/**
-	 * Key name fragments masked out of the box, matched case insensitively as
-	 * substrings, so 'secret' also covers 'shared_secret'.
+	 * Key name fragments masked out of the box, matched case insensitively as substrings
+	 * with '-' read as '_', so 'secret' also covers 'shared_secret' and 'api_key' covers 'X-API-KEY'.
 	 *
 	 * @var string[]
 	 */
@@ -68,12 +68,12 @@ class KeyMasker {
 	/**
 	 * Widen the list of masked key names, for the names specific to a provider.
 	 *
-	 * @param string[] $keys Key name fragments, matched case insensitively as substrings.
+	 * @param string[] $keys Key name fragments, matched case insensitively as substrings, with '-' read as '_'.
 	 * @return void
 	 */
 	public static function add_keys( $keys ) {
 		foreach ( (array) $keys as $key ) {
-			$key = strtolower( trim( (string) $key ) );
+			$key = self::normalize_key( trim( (string) $key ) );
 			if ( '' !== $key && ! in_array( $key, self::$extra_keys, true ) ) {
 				self::$extra_keys[] = $key;
 			}
@@ -176,7 +176,7 @@ class KeyMasker {
 	 * @return bool
 	 */
 	private static function is_sensitive_key( $key ) {
-		$key = strtolower( $key );
+		$key = self::normalize_key( $key );
 		foreach ( self::get_keys() as $needle ) {
 			if ( false !== strpos( $key, $needle ) ) {
 				return true;
@@ -184,6 +184,16 @@ class KeyMasker {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Lowercase a key name and read '-' as '_', so a header spelling matches a snake case fragment.
+	 *
+	 * @param string $key The key name.
+	 * @return string
+	 */
+	private static function normalize_key( $key ) {
+		return str_replace( '-', '_', strtolower( $key ) );
 	}
 
 	/**

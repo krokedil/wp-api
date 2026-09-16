@@ -51,6 +51,27 @@ class KeyMaskerTest extends TestCase {
 		$this->assertSame( KeyMasker::REDACTED, $masked['access_token'] );
 	}
 
+	/** A hyphenated header spelling matches the snake case fragment. */
+	public function test_a_hyphen_reads_as_an_underscore() {
+		$masked = KeyMasker::mask(
+			array(
+				'X-API-KEY'     => 'abc',
+				'x-private-key' => 'abc',
+				'X-Request-Id'  => 'kept',
+			)
+		);
+
+		$this->assertSame( KeyMasker::REDACTED, $masked['X-API-KEY'] );
+		$this->assertSame( KeyMasker::REDACTED, $masked['x-private-key'] );
+		$this->assertSame( 'kept', $masked['X-Request-Id'] );
+
+		KeyMasker::add_keys( array( 'merchant-id' ) );
+		$masked = KeyMasker::mask( array( 'merchant_id' => 'abc' ) );
+		KeyMasker::reset_keys();
+
+		$this->assertSame( KeyMasker::REDACTED, $masked['merchant_id'] );
+	}
+
 	/** Item 7: an object is named, never expanded. */
 	public function test_never_expands_an_object() {
 		$object         = new \stdClass();

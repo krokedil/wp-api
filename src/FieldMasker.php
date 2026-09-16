@@ -48,7 +48,13 @@ class FieldMasker {
 				if ( ! in_array( $value, $base, true ) ) {
 					$base[] = $value;
 				}
-			} elseif ( is_array( $value ) && isset( $base[ $key ] ) && is_array( $base[ $key ] ) ) {
+				continue;
+			}
+
+			// Names match case insensitively, so 'HEADERS' merges into an existing 'headers'.
+			$key = self::find_key( $base, $key );
+
+			if ( is_array( $value ) && isset( $base[ $key ] ) && is_array( $base[ $key ] ) ) {
 				$base[ $key ] = self::merge_config( $base[ $key ], $value );
 			} else {
 				$base[ $key ] = $value;
@@ -56,6 +62,24 @@ class FieldMasker {
 		}
 
 		return $base;
+	}
+
+	/**
+	 * Find the key already in a configuration that matches a name case insensitively.
+	 *
+	 * @param array  $config The configuration.
+	 * @param string $name   The name to look for.
+	 * @return string The existing key, or the name itself if none matches.
+	 */
+	private static function find_key( $config, $name ) {
+		$lower = strtolower( (string) $name );
+		foreach ( array_keys( $config ) as $key ) {
+			if ( ! is_int( $key ) && strtolower( (string) $key ) === $lower ) {
+				return $key;
+			}
+		}
+
+		return $name;
 	}
 
 	/**
@@ -91,7 +115,10 @@ class FieldMasker {
 			}
 
 			if ( is_array( $value ) ) {
-				$rules['children'][ $name ] = self::compile_rules( $value );
+				$child                      = self::compile_rules( $value );
+				$rules['children'][ $name ] = isset( $rules['children'][ $name ] )
+					? self::merge_rules( $rules['children'][ $name ], $child )
+					: $child;
 			} else {
 				// A named field with anything but an array, such as 'attachment' => 'mask'.
 				$rules['mask'][ $name ] = true;
@@ -99,6 +126,35 @@ class FieldMasker {
 		}
 
 		return $rules;
+	}
+
+	/**
+	 * Combine two rule sets so that everything either one names stays in force. Children
+	 * with the same name are merged the same way, and two allow lists keep what either names.
+	 *
+	 * @param array $a One rule set.
+	 * @param array $b The other rule set.
+	 * @return array
+	 */
+	private static function merge_rules( $a, $b ) {
+		$children = $a['children'];
+		foreach ( $b['children'] as $name => $child ) {
+			$children[ $name ] = isset( $children[ $name ] ) ? self::merge_rules( $children[ $name ], $child ) : $child;
+		}
+
+		$a_keep = $a['keep'] ?? null;
+		$b_keep = $b['keep'] ?? null;
+		if ( null === $a_keep || null === $b_keep ) {
+			$keep = $a_keep ?? $b_keep;
+		} else {
+			$keep = $a_keep + $b_keep;
+		}
+
+		return array(
+			'mask'     => $a['mask'] + $b['mask'],
+			'children' => $children,
+			'keep'     => $keep,
+		);
 	}
 
 	/**
@@ -133,21 +189,28 @@ class FieldMasker {
 				continue;
 			}
 
-			if ( ! is_array( $value ) ) {
-				continue;
-			}
-
 			$child = $scope['children'][ $name ] ?? null;
 			if ( null === $child ) {
-				$data[ $key ] = self::mask_node( $value, $scope, null, $depth + 1 );
+				$data[ $key ] = is_array( $value ) ? self::mask_node( $value, $scope, null, $depth + 1 ) : $value;
 				continue;
 			}
 
-			// Rules stay in scope as we descend, so a kept key is still described by
-			// the rules declared beside it, in whichever order.
-			$next = array(
-				'mask'     => $child['mask'] + $scope['mask'],
-				'children' => $child['children'] + $scope['children'],
+			// A configured container that is not one cannot be walked, so it is masked whole
+			// rather than left in the clear when the provider changes shape.
+			if ( ! is_array( $value ) ) {
+				$data[ $key ] = KeyMasker::placeholder( $value );
+				continue;
+			}
+
+			// Rules stay in scope as we descend, so a kept key is still described by the
+			// rules declared beside it, in whichever order. A child with the same name as one
+			// already in scope combines with it rather than replacing it.
+			$next = self::merge_rules(
+				$child,
+				array(
+					'mask'     => $scope['mask'],
+					'children' => $scope['children'],
+				)
 			);
 
 			$data[ $key ] = self::mask_node( $value, $next, $child['keep'], $depth + 1 );

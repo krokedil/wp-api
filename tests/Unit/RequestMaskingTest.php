@@ -208,11 +208,91 @@ class RequestMaskingTest extends TestCase {
 		$this->assertSame( KeyMasker::REDACTED, $masked['body']['billing_address']['email'] );
 	}
 
-	/** A body that is not json is left exactly as it was sent. */
-	public function test_a_body_that_is_not_json_is_left_alone() {
-		$masked = $this->request()->mask_request( array( 'body' => 'order_id=123&status=captured' ) );
+	/** A form encoded body is decoded like a json one, so the rules can reach into it. */
+	public function test_a_form_encoded_body_is_decoded_and_masked() {
+		$request = $this->request()->set_request_fields( array( 'body' => array( 'password' ) ) );
 
-		$this->assertSame( 'order_id=123&status=captured', $masked['body'] );
+		$masked = $request->mask_request( array( 'body' => 'order_id=123&password=hunter2' ) );
+
+		$this->assertSame( '123', $masked['body']['order_id'] );
+		$this->assertSame( KeyMasker::REDACTED, $masked['body']['password'] );
+	}
+
+	/** A body that is neither json nor form encoded is left as it was when no rule names it. */
+	public function test_an_unknown_body_format_is_left_alone_without_a_body_rule() {
+		$masked = $this->request()->mask_request( array( 'body' => 'plain text, not a form' ) );
+
+		$this->assertSame( 'plain text, not a form', $masked['body'] );
+	}
+
+	/** A body rule cannot reach into an unknown format, so the body is masked whole rather than leaked. */
+	public function test_an_unknown_body_format_is_masked_whole_under_a_body_rule() {
+		$request = $this->request()->set_request_fields( array( 'body' => array( 'password' ) ) );
+
+		$masked = $request->mask_request( array( 'body' => 'password: hunter2 in some custom format' ) );
+
+		$this->assertSame( KeyMasker::REDACTED, $masked['body'] );
+	}
+
+	/** A configured container that arrives as a scalar is masked whole. */
+	public function test_a_scalar_where_a_container_was_configured_is_masked() {
+		$masked = $this->request()->sanitize(
+			array(
+				'customer' => 'ada@example.test',
+				'note'     => 'kept',
+			),
+			array( 'customer' => array( 'email' ) )
+		);
+
+		$this->assertSame( KeyMasker::REDACTED, $masked['customer'] );
+		$this->assertSame( 'kept', $masked['note'] );
+	}
+
+	/** A nested rule with the same name as one in scope combines with it instead of replacing it. */
+	public function test_colliding_child_rules_are_merged() {
+		$masked = $this->request()->sanitize(
+			array(
+				'customer' => array(
+					'billing_address' => array(
+						'phone' => '0701234567',
+						'email' => 'ada@example.test',
+						'city'  => 'Stockholm',
+					),
+				),
+			),
+			array(
+				'billing_address' => array( 'phone' ),
+				'customer'        => array( 'billing_address' => array( 'email' ) ),
+			)
+		);
+
+		$this->assertSame( KeyMasker::REDACTED, $masked['customer']['billing_address']['phone'] );
+		$this->assertSame( KeyMasker::REDACTED, $masked['customer']['billing_address']['email'] );
+		$this->assertSame( 'Stockholm', $masked['customer']['billing_address']['city'] );
+	}
+
+	/** The same container named twice in different case yields one merged rule. */
+	public function test_configuration_keys_merge_case_insensitively() {
+		$request = new TestRequest(
+			array(),
+			array(),
+			array(),
+			array( 'request' => array( 'HEADERS' => array( 'X-Token' ) ) )
+		);
+
+		$masked = $request->mask_request(
+			array(
+				'headers' => array(
+					'Authorization' => 'Basic dGVzdDp0ZXN0',
+					'X-Token'       => 'abc',
+					'Accept'        => 'application/json',
+				),
+			)
+		);
+
+		$this->assertSame( KeyMasker::REDACTED, $masked['headers']['Authorization'] );
+		$this->assertSame( KeyMasker::REDACTED, $masked['headers']['X-Token'] );
+		$this->assertSame( 'application/json', $masked['headers']['Accept'] );
 	}
 
 	/** Item 3: and when it arrives already decoded. */
@@ -282,6 +362,11 @@ class RequestMaskingTest extends TestCase {
 
 		$this->assertSame( KeyMasker::REDACTED, $present['headers']['authorization'] );
 		$this->assertSame( KeyMasker::MISSING, $empty['headers']['Authorization'] );
+
+		// It runs on the configured rules, not a hardcoded Authorization header.
+		$configured = $request->set_request_fields( array( 'headers' => array( 'X-Token' ) ) )
+			->deprecated_sanitize( array( 'headers' => array( 'X-Token' => 'abc' ) ) );
+		$this->assertSame( KeyMasker::REDACTED, $configured['headers']['X-Token'] );
 	}
 
 	/** Item 9: the seam returns the URL unchanged by default. */

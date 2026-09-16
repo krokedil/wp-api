@@ -265,11 +265,11 @@ abstract class Request {
 	 */
 	protected function mask_request_args( $request_args ) {
 		try {
-			// Decode the json body that was really sent, so the rules can reach into it and
-			// the log holds a readable structure rather than an escaped string.
+			// Decode the body that was really sent, so the rules can reach into it and the log
+			// holds a readable structure rather than an escaped string. A body no rule can reach
+			// into is masked whole by a configured body rule, see FieldMasker.
 			if ( isset( $request_args['body'] ) && is_string( $request_args['body'] ) ) {
-				$decoded              = json_decode( $request_args['body'], true );
-				$request_args['body'] = is_array( $decoded ) ? $decoded : $request_args['body'];
+				$request_args['body'] = $this->decode_body( $request_args['body'] );
 			}
 
 			$fields = $this->request_fields_to_mask;
@@ -277,6 +277,27 @@ abstract class Request {
 		} catch ( \Throwable $e ) {
 			return KeyMasker::FAILED;
 		}
+	}
+
+	/**
+	 * Decode a json or form encoded body string into an array, or return it as it was.
+	 *
+	 * @param string $body The body string.
+	 * @return array|string
+	 */
+	private function decode_body( $body ) {
+		$decoded = json_decode( $body, true );
+		if ( is_array( $decoded ) ) {
+			return $decoded;
+		}
+
+		// What http_build_query() produces: key=value pairs joined by '&', nothing else.
+		if ( preg_match( '/^[^=&\s]+=[^&\s]*(?:&[^=&\s]+=[^&\s]*)*$/', $body ) ) {
+			parse_str( $body, $decoded );
+			return $decoded;
+		}
+
+		return $body;
 	}
 
 	/**
@@ -357,10 +378,10 @@ abstract class Request {
 	 *
 	 * @deprecated Use mask_request_args() instead. Kept for backward compatibility.
 	 * @param array $request_args The request data to sanitize.
-	 * @return array The request data sanitized.
+	 * @return array|string The request data sanitized, or the failure marker.
 	 */
 	protected function sanitize_request_args( $request_args ) {
-		return $this->sanitize_field( $request_args, array( 'headers' => array( 'Authorization' ) ) );
+		return $this->mask_request_args( $request_args );
 	}
 
 	/**
