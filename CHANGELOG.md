@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+------------------
+## [1.2.0] - 2026-09-27
 ### Added
 * Added configurable masking for the request, the response and the request arguments, replacing the hardcoded Authorization header and `username`/`password` handling. Rules are declared as `$request_fields_to_mask`, `$response_fields_to_mask` and `$argument_fields_to_mask`, or passed as the `$masked_fields` constructor argument, where they merge into what the class already declares.
 * Added an allow list to the masking configuration. The reserved `keep` key masks every key in a container that it does not name, so a field the provider adds later is masked by default.
@@ -27,7 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added a key name pass over the finished log entry. `Krokedil\WpApi\KeyMasker` masks by key name wherever it appears, and by shape for an Authorization value, a JWT and a standalone base64 blob, catching what no rule describes. Consuming plugins widen the list with `KeyMasker::add_keys()`.
 * Masking fails closed. A section that cannot be masked is logged as `[MASKING FAILED]` rather than in the clear.
 
-------------------
 ## [1.1.1] - 2023-12-04
 ### Changed
 * Redacted the username and password from the log.
