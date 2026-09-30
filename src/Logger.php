@@ -7,14 +7,21 @@
 
 namespace Krokedil\WpApi;
 
+use Krokedil\WpApi\KeyMasker;
+
 /**
  * Logger class for the api requests. Used the WooCommerce logger.
  */
 class Logger {
 	/**
+	 * The log levels the WooCommerce logger accepts.
+	 */
+	const LOG_LEVELS = array( 'emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug' );
+
+	/**
 	 * WC Logger instance.
 	 *
-	 * @var \WC_Logger $log
+	 * @var \WC_Logger_Interface|null $log
 	 */
 	public static $log;
 
@@ -26,41 +33,34 @@ class Logger {
 	 * @return void
 	 */
 	public static function log( $slug, $log_data = array() ) {
-		$log_level = $log_data['log_level'] ?? 'info';
-		$logger    = wc_get_logger();
-		$message   = wp_json_encode( $log_data );
-		$context   = array( 'source' => $slug );
-		switch ( $log_level ) {
-			case 'emergency':
-				$logger->emergency( $message, $context );
-				break;
-			case 'alert':
-				$logger->alert( $message, $context );
-				break;
-			case 'critical':
-				$logger->critical( $message, $context );
-				break;
-			case 'error':
-				$logger->error( $message, $context );
-				break;
-			case 'critical':
-				$logger->critical( $message, $context );
-				break;
-			case 'warning':
-				$logger->warning( $message, $context );
-				break;
-			case 'notice':
-				$logger->notice( $message, $context );
-				break;
-			case 'info':
-				$logger->info( $message, $context );
-				break;
-			case 'debug':
-				$logger->debug( $message, $context );
-				break;
-			default:
-				$logger->info( $message, $context );
+		if ( empty( self::$log ) ) {
+			self::$log = wc_get_logger();
 		}
+
+		// Read the level before masking, a failed pass replaces the whole entry.
+		$log_level = $log_data['log_level'] ?? 'info';
+		if ( ! in_array( $log_level, self::LOG_LEVELS, true ) ) {
+			$log_level = 'info';
+		}
+
+		// A failure here costs the entry, it never lets an unmasked one through.
+		try {
+			$log_data = static::mask_log_data( $log_data );
+		} catch ( \Throwable $e ) {
+			$log_data = array( 'error' => KeyMasker::FAILED );
+		}
+
+		self::$log->log( $log_level, wp_json_encode( $log_data ), array( 'source' => $slug ) );
+	}
+
+	/**
+	 * The last pass over the finished entry, catching anything no rule described.
+	 *
+	 * @param array $log_data The data to log.
+	 * @return mixed
+	 */
+	protected static function mask_log_data( $log_data ) {
+		return KeyMasker::mask( $log_data );
 	}
 
 	/**
@@ -111,7 +111,9 @@ class Logger {
 	}
 
 	/**
-	 * Get the caller string from the stack trace line.
+	 * Get the caller string from the stack trace line. Argument values are masked first, but
+	 * frame arguments are positional, so there is no key name to match on: a bare token passed
+	 * as an argument survives unless its own shape gives it away. Treat these logs as sensitive.
 	 *
 	 * @param string $class The class name.
 	 * @param string $type The type, :: or -> depending on if its a static or non static class.
@@ -129,6 +131,12 @@ class Logger {
 			', ',
 			array_map(
 				function ( $value ) {
+					try {
+						$value = KeyMasker::mask( $value );
+					} catch ( \Throwable $e ) {
+						$value = KeyMasker::FAILED;
+					}
+
 					// Json encode all values so that we can see what objects and arrays are passed. Dont escape anything, partial output on errors, and ignore slashes and line terminators.
 					return wp_json_encode( $value, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_UNESCAPED_LINE_TERMINATORS | JSON_UNESCAPED_SLASHES );
 				},
