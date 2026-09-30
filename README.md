@@ -163,17 +163,22 @@ parent::__construct(
 ```
 
 A plugin that logs from somewhere other than a `Request` subclass, such as a second request
-layer of its own, can run the same pass directly. `Krokedil\WpApi\FieldMasker` is where the
-rules are compiled and applied, and `Request` is only one of its callers.
+layer of its own, can run the same pass through `Krokedil\WpApi\Masking`. Pass your plugin
+slug, so the filter that turns masking off (see below) covers this data too.
 
 ```php
-use Krokedil\WpApi\FieldMasker;
+use Krokedil\WpApi\Masking;
 
-$body = FieldMasker::mask(
+$body = Masking::mask_fields(
     $body,
-    array( 'billing_address' => array( 'keep' => array( 'postal_code', 'city' ) ) )
+    array( 'billing_address' => array( 'keep' => array( 'postal_code', 'city' ) ) ),
+    'my_plugin_slug'
 );
 ```
+
+`Masking::mask_keys( $data, $slug )` runs the key name pass the same way. Both fail closed
+and return `[MASKING FAILED]` if masking throws. `FieldMasker` and `KeyMasker` are the
+WordPress free engines underneath, and calling them directly ignores the filter.
 
 #### The key name pass
 
@@ -206,6 +211,27 @@ protected function mask_request_url( $request_url ) {
 
 The override is called inside a guard, so one that throws costs the URL in the log and not
 the API call.
+
+#### Turning masking off
+
+There is no setting for this, so a merchant cannot turn it off by accident. While debugging,
+a developer can turn it off with a filter. It gets the plugin slug, so one plugin can be
+targeted:
+
+```php
+add_filter(
+    'krokedil_wp_api_mask_log_data',
+    function ( $enabled, $slug ) {
+        return 'my_plugin_slug' === $slug ? false : $enabled;
+    },
+    10,
+    2
+);
+```
+
+Only a strict `false` turns it off, and a callback that throws leaves it on. It covers every
+masking step in `Request`, `Logger` and `Masking`, including the stack trace. Custom masking
+in a plugin can check `Masking::is_enabled( $slug )`. Never leave it on in production.
 
 #### XML payloads
 

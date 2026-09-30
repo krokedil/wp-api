@@ -58,6 +58,13 @@ if ( ! function_exists( 'wp_remote_retrieve_header' ) ) {
 	}
 }
 
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $hook, $value, ...$args ) {
+		$callback = $GLOBALS['wp_api_test_filters'][ $hook ] ?? null;
+		return $callback ? $callback( $value, ...$args ) : $value;
+	}
+}
+
 if ( ! function_exists( 'wc_get_logger' ) ) {
 	function wc_get_logger() {
 		return new WC_Logger();

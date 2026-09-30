@@ -9,6 +9,7 @@ namespace Krokedil\WpApi;
 
 use Krokedil\WpApi\Logger;
 use Krokedil\WpApi\KeyMasker;
+use Krokedil\WpApi\Masking;
 use Krokedil\WpApi\FieldMasker;
 
 /**
@@ -250,7 +251,18 @@ abstract class Request {
 			$log_level = 'info';
 		}
 
-		$response_body = $this->mask_response( $response_body );
+		$mask = Masking::is_enabled( $this->config['slug'] );
+		if ( $mask ) {
+			$response_body = $this->mask_response( $response_body );
+			$arguments     = $this->mask_arguments( $this->arguments );
+			$request_url   = $this->get_masked_request_url( $request_url );
+			$request_args  = $this->mask_request_args( $request_args );
+		} else {
+			$arguments = $this->arguments;
+			if ( isset( $request_args['body'] ) && is_string( $request_args['body'] ) ) {
+				$request_args['body'] = $this->decode_body( $request_args['body'] );
+			}
+		}
 
 		// Log the response.
 		Logger::log(
@@ -258,16 +270,16 @@ abstract class Request {
 			array(
 				'type'           => $this->method,
 				'title'          => $this->log_title,
-				'arguments'      => $this->mask_arguments( $this->arguments ),
-				'request'        => $this->mask_request_args( $request_args ),
-				'request_url'    => $this->get_masked_request_url( $request_url ),
+				'arguments'      => $arguments,
+				'request'        => $request_args,
+				'request_url'    => $request_url,
 				'response'       => array(
 					'body' => $response_body,
 					'code' => $code,
 				),
 				'log_level'      => $log_level,
 				'timestamp'      => date( 'Y-m-d H:i:s' ), // phpcs:ignore WordPress.DateTime.RestrictedFunctions -- Date is not used for display.
-				'stack'          => Logger::get_stack( $this->config['extended_debugging'] ),
+				'stack'          => Logger::get_stack( $this->config['extended_debugging'], $mask ),
 				'plugin_version' => $this->config['plugin_version'],
 			)
 		);
