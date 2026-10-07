@@ -8,18 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ------------------
-## [1.2.0] - 2026-09-27
+## [1.2.0] - 2026-10-07
 ### Added
 * Added configurable masking for the request, the response and the request arguments, replacing the hardcoded Authorization header and `username`/`password` handling. Rules are declared as `$request_fields_to_mask`, `$response_fields_to_mask` and `$argument_fields_to_mask`, or passed as the `$masked_fields` constructor argument, where they merge into what the class already declares.
 * Added an allow list to the masking configuration. The reserved `keep` key masks every key in a container that it does not name, so a field the provider adds later is masked by default.
 * Added `Krokedil\WpApi\FieldMasker`, so a plugin that logs from outside a `Request` subclass can apply the same configured rules.
 * Added `mask_request_url()` for APIs that address a resource by a token in the path. It returns the URL unchanged by default, and an override that throws costs the log line and not the API call.
 * Added PHPUnit, PHPCS and PHPStan with `composer test`, `composer phpcs` and `composer phpstan`, and GitHub Actions workflows for pull requests.
+* Added XML support for response bodies. `get_response_body()` parses the body by its content type: JSON is decoded, XML is parsed into an array, HTML is returned as a string. A body with no or an unknown content type is decoded as JSON when it is valid JSON, so the response masking rules still reach into it.
+* Added log levels. `Logger::log()` writes with the WooCommerce logger at the `log_level` of the entry, `error` for a non 2xx response and for a body `status` of `error`, `warning` for a body `status` of `warning`, otherwise `info`.
+* `WP_Error` responses from `wp_remote_request()` are now logged.
+* Added the `krokedil_wp_api_mask_log_data` filter. Return `false` to turn the log masking off while debugging. It gets the plugin slug as its second argument. There is deliberately no setting for it.
+* Added `Krokedil\WpApi\Masking`, with `mask_fields()`, `mask_keys()` and `is_enabled()`, so a plugin that masks data outside a `Request` subclass honours the filter too.
 
 ### Changed
 * `[MISSING]` now tells an empty value from a sent one on every masked field, rather than only on the Authorization header.
 * Masking no longer decides by length whether a header holds a token. Any value a rule names is replaced, whatever its length.
 * Data nested deeper than twelve levels is masked rather than walked.
+* `request()` returns the body parsed by its content type rather than always through `json_decode()`. A 2xx HTML body, or a body with no or an unknown content type that is not JSON, is now returned as a string where it used to be `null`, and a body labelled JSON or XML that cannot be parsed returns a `WP_Error`.
+* Request logs are written at the `info` level rather than the `notice` default of `WC_Logger::add()`, so a store with its log threshold at `notice` or higher no longer records successful requests.
 
 ### Deprecated
 * `sanitize_request_args()` is deprecated and delegates to the configured masking, keeping its behaviour.
@@ -30,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added a key name pass over the finished log entry. `Krokedil\WpApi\KeyMasker` masks by key name wherever it appears, and by shape for an Authorization value, a JWT and a standalone base64 blob, catching what no rule describes. Consuming plugins widen the list with `KeyMasker::add_keys()`.
 * Masking fails closed. A section that cannot be masked is logged as `[MASKING FAILED]` rather than in the clear.
 
+------------------
 ## [1.1.1] - 2023-12-04
 ### Changed
 * Redacted the username and password from the log.
