@@ -8,15 +8,21 @@
 namespace Krokedil\WpApi;
 
 use Krokedil\WpApi\KeyMasker;
+use Krokedil\WpApi\Masking;
 
 /**
  * Logger class for the api requests. Used the WooCommerce logger.
  */
 class Logger {
 	/**
+	 * The log levels the WooCommerce logger accepts.
+	 */
+	const LOG_LEVELS = array( 'emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug' );
+
+	/**
 	 * WC Logger instance.
 	 *
-	 * @var \WC_Logger|null $log
+	 * @var \WC_Logger_Interface|null $log
 	 */
 	public static $log;
 
@@ -28,19 +34,26 @@ class Logger {
 	 * @return void
 	 */
 	public static function log( $slug, $log_data = array() ) {
-		// Log the data.
 		if ( empty( self::$log ) ) {
-			self::$log = new \WC_Logger();
+			self::$log = wc_get_logger();
+		}
+
+		// Read the level before masking, a failed pass replaces the whole entry.
+		$log_level = $log_data['log_level'] ?? 'info';
+		if ( ! in_array( $log_level, self::LOG_LEVELS, true ) ) {
+			$log_level = 'info';
 		}
 
 		// A failure here costs the entry, it never lets an unmasked one through.
-		try {
-			$log_data = static::mask_log_data( $log_data );
-		} catch ( \Throwable $e ) {
-			$log_data = array( 'error' => KeyMasker::FAILED );
+		if ( Masking::is_enabled( $slug ) ) {
+			try {
+				$log_data = static::mask_log_data( $log_data );
+			} catch ( \Throwable $e ) {
+				$log_data = array( 'error' => KeyMasker::FAILED );
+			}
 		}
 
-		self::$log->add( $slug, wp_json_encode( $log_data ) );
+		self::$log->log( $log_level, wp_json_encode( $log_data ), array( 'source' => $slug ) );
 	}
 
 	/**
@@ -57,16 +70,17 @@ class Logger {
 	 * Gets the stack for the request.
 	 *
 	 * @param bool $extended_debugging Whether to include the arguments in the stack trace. This should never be turned on by default, but rather only used when extra information is needed.
+	 * @param bool $mask               Whether to mask the arguments in the stack trace.
 	 * @return array
 	 */
-	public static function get_stack( $extended_debugging = false ) {
+	public static function get_stack( $extended_debugging = false, $mask = true ) {
 		$debug_data = debug_backtrace(); // phpcs:ignore WordPress.PHP.DevelopmentFunctions -- Data is not used for display.
 		$stack      = array();
 
 		// Skip the first 4 items in the stack trace to skip to the actual caller.
 		$count = count( $debug_data );
 		for ( $i = 5; $i < $count; $i++ ) {
-			self::process_debug_line( $stack, $debug_data[ $i ], $extended_debugging );
+			self::process_debug_line( $stack, $debug_data[ $i ], $extended_debugging, $mask );
 		}
 
 		return $stack;
@@ -78,9 +92,10 @@ class Logger {
 	 * @param array $stack The stack trace passed by reference.
 	 * @param array $debug_line The debug info from the raw stack trace.
 	 * @param bool  $extended_debugging Whether to include the arguments in the stack trace.
+	 * @param bool  $mask Whether to mask the arguments.
 	 * @return void
 	 */
-	private static function process_debug_line( &$stack, $debug_line, $extended_debugging ) {
+	private static function process_debug_line( &$stack, $debug_line, $extended_debugging, $mask = true ) {
 		$class    = $debug_line['class'] ?? '';
 		$type     = $debug_line['type'] ?? '';
 		$function = $debug_line['function'] ?? '';
@@ -89,7 +104,7 @@ class Logger {
 		self::handle_wp_hook( $class, $function, $args, $debug_line );
 
 		// Construct a caller string.
-		$caller = self::get_caller_string( $class, $type, $function, $args, $extended_debugging );
+		$caller = self::get_caller_string( $class, $type, $function, $args, $extended_debugging, $mask );
 
 		$row = array(
 			'file'     => $debug_line['file'] ?? '',
@@ -110,9 +125,10 @@ class Logger {
 	 * @param string $function The function name.
 	 * @param array  $args The arguments passed to the caller.
 	 * @param bool   $extended_debugging Whether to include the arguments in the stack trace.
+	 * @param bool   $mask Whether to mask the arguments.
 	 * @return string
 	 */
-	private static function get_caller_string( $class, $type, $function, $args, $extended_debugging ) {
+	private static function get_caller_string( $class, $type, $function, $args, $extended_debugging, $mask = true ) {
 		// Construct a caller string.
 		$caller  = $class . $type . $function;
 		$caller .= '(';
@@ -120,9 +136,9 @@ class Logger {
 		$caller .= $extended_debugging ? implode(
 			', ',
 			array_map(
-				function ( $value ) {
+				function ( $value ) use ( $mask ) {
 					try {
-						$value = KeyMasker::mask( $value );
+						$value = $mask ? KeyMasker::mask( $value ) : $value;
 					} catch ( \Throwable $e ) {
 						$value = KeyMasker::FAILED;
 					}

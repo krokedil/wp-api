@@ -47,8 +47,40 @@ if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_remote_retrieve_header' ) ) {
+	function wp_remote_retrieve_header( $response, $header ) {
+		foreach ( $response['headers'] ?? array() as $name => $value ) {
+			if ( strtolower( $name ) === strtolower( $header ) ) {
+				return $value;
+			}
+		}
+		return '';
+	}
+}
+
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $hook, $value, ...$args ) {
+		$callback = $GLOBALS['wp_api_test_filters'][ $hook ] ?? null;
+		return $callback ? $callback( $value, ...$args ) : $value;
+	}
+}
+
+if ( ! function_exists( 'wc_get_logger' ) ) {
+	function wc_get_logger() {
+		return new WC_Logger();
+	}
+}
+
 if ( ! class_exists( 'WP_Error' ) ) {
-	class WP_Error {}
+	class WP_Error {
+		public $errors = array();
+
+		public function __construct( $code = '', $message = '' ) {
+			if ( '' !== $code ) {
+				$this->errors[ $code ][] = $message;
+			}
+		}
+	}
 }
 
 if ( ! class_exists( 'WC_Logger' ) ) {
@@ -59,6 +91,14 @@ if ( ! class_exists( 'WC_Logger' ) ) {
 			$this->entries[] = array(
 				'handle'  => $handle,
 				'message' => $message,
+			);
+		}
+
+		public function log( $level, $message, $context = array() ) {
+			$this->entries[] = array(
+				'handle'  => $context['source'] ?? '',
+				'message' => $message,
+				'level'   => $level,
 			);
 		}
 	}

@@ -9,6 +9,7 @@ namespace Krokedil\WpApi;
 
 use Krokedil\WpApi\Logger;
 use Krokedil\WpApi\KeyMasker;
+use Krokedil\WpApi\Masking;
 use Krokedil\WpApi\FieldMasker;
 
 /**
@@ -204,6 +205,7 @@ abstract class Request {
 	 */
 	protected function process_response( $response, $request_args, $request_url ) {
 		if ( is_wp_error( $response ) ) {
+			$this->log_response( $response, $request_args, $request_url );
 			return $response;
 		}
 
@@ -211,7 +213,7 @@ abstract class Request {
 		if ( $response_code < 200 || $response_code > 299 ) {
 			$return = $this->get_error_message( $response );
 		} else {
-			$return = json_decode( wp_remote_retrieve_body( $response ), true );
+			$return = $this->get_response_body( $response );
 		}
 
 		$this->log_response( $response, $request_args, $request_url );
@@ -232,9 +234,35 @@ abstract class Request {
 		}
 
 		// Get the response body if its not a WP_Error.
-		$response_body = ! is_wp_error( $response ) ? json_decode( wp_remote_retrieve_body( $response ), true ) : array();
-		$response_body = $this->mask_response( $response_body );
+		$response_body = ! is_wp_error( $response ) ? $this->get_response_body( $response ) : array();
 		$code          = wp_remote_retrieve_response_code( $response );
+
+		// Set log level. Read from the body before it is masked. A body that failed to parse is a WP_Error.
+		$body_status = is_array( $response_body ) ? ( $response_body['status'] ?? null ) : null;
+		if ( $code < 200 || $code > 299 || is_wp_error( $response_body ) ) {
+			$log_level = 'error';
+		} elseif ( 'error' === $body_status ) {
+			// Some APIs (e.g. Fraktjakt) return a successful HTTP status while reporting an
+			// application-level error in the response body. Treat those as errors too.
+			$log_level = 'error';
+		} elseif ( 'warning' === $body_status ) {
+			$log_level = 'warning';
+		} else {
+			$log_level = 'info';
+		}
+
+		$mask = Masking::is_enabled( $this->config['slug'] );
+		if ( $mask ) {
+			$response_body = $this->mask_response( $response_body );
+			$arguments     = $this->mask_arguments( $this->arguments );
+			$request_url   = $this->get_masked_request_url( $request_url );
+			$request_args  = $this->mask_request_args( $request_args );
+		} else {
+			$arguments = $this->arguments;
+			if ( isset( $request_args['body'] ) && is_string( $request_args['body'] ) ) {
+				$request_args['body'] = $this->decode_body( $request_args['body'] );
+			}
+		}
 
 		// Log the response.
 		Logger::log(
@@ -242,18 +270,63 @@ abstract class Request {
 			array(
 				'type'           => $this->method,
 				'title'          => $this->log_title,
-				'arguments'      => $this->mask_arguments( $this->arguments ),
-				'request'        => $this->mask_request_args( $request_args ),
-				'request_url'    => $this->get_masked_request_url( $request_url ),
+				'arguments'      => $arguments,
+				'request'        => $request_args,
+				'request_url'    => $request_url,
 				'response'       => array(
 					'body' => $response_body,
 					'code' => $code,
 				),
+				'log_level'      => $log_level,
 				'timestamp'      => date( 'Y-m-d H:i:s' ), // phpcs:ignore WordPress.DateTime.RestrictedFunctions -- Date is not used for display.
-				'stack'          => Logger::get_stack( $this->config['extended_debugging'] ),
+				'stack'          => Logger::get_stack( $this->config['extended_debugging'], $mask ),
 				'plugin_version' => $this->config['plugin_version'],
 			)
 		);
+	}
+
+	/**
+	 * Returns the body of the response based on the content type.
+	 *
+	 * @param array|\WP_Error $response The response from wp_remote_get() or wp_remote_post().
+	 * @return array|object|string|\WP_Error Parsed response body or WP_Error if an error occurs.
+	 */
+	public function get_response_body( $response ) {
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$content_type = wp_remote_retrieve_header( $response, 'content-type' );
+		$content_type = is_array( $content_type ) ? implode( ', ', $content_type ) : (string) $content_type;
+		$body         = wp_remote_retrieve_body( $response );
+
+		if ( strpos( $content_type, 'application/json' ) !== false ) {
+			$parsed_body = json_decode( $body, true );
+			if ( json_last_error() === JSON_ERROR_NONE ) {
+				return $parsed_body;
+			}
+			return new \WP_Error( 'json_decode_error', 'Failed to decode JSON' );
+
+		} elseif ( strpos( $content_type, 'text/html' ) !== false ) {
+			return $body;
+
+		} elseif ( strpos( $content_type, 'application/xml' ) !== false || strpos( $content_type, 'text/xml' ) !== false ) {
+			// Collect parse errors rather than emitting a PHP warning per malformed node.
+			$use_errors  = libxml_use_internal_errors( true );
+			$parsed_body = simplexml_load_string( $body );
+			libxml_clear_errors();
+			libxml_use_internal_errors( $use_errors );
+			if ( false !== $parsed_body ) {
+				return json_decode( wp_json_encode( $parsed_body ), true );
+			}
+			return new \WP_Error( 'xml_parse_error', 'Failed to parse XML' );
+
+		} else {
+			// No or an unknown content type. Decode json anyway, so a body the API did not label
+			// is still returned as an array and the response masking rules can reach into it.
+			$parsed_body = json_decode( $body, true );
+			return is_array( $parsed_body ) ? $parsed_body : $body;
+		}
 	}
 
 	/**
