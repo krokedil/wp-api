@@ -96,6 +96,171 @@ If you need to add a body, that can be done by adding the `body` key with the va
 
 `get_error_message( $response )` - Since all APIs handle errors differently, this method should parse the response body and extract any error messages that might be present. This should then return a WP_Error object with the error message, and any other data that might be useful for debugging.
 
+### Masking log data
+
+Every request and response is logged, so the package masks before it writes. There are
+two passes, and they do different jobs.
+
+#### The configured pass
+
+`$request_fields_to_mask`, `$response_fields_to_mask` and `$argument_fields_to_mask` are
+`protected` properties on the request class, and they describe the payload you know about.
+The structure mirrors the data: a string names a field to mask, and a nested array
+describes that key further.
+
+```php
+protected $request_fields_to_mask = array(
+    'headers' => array( 'Authorization' ),
+    'body'    => array(
+        'billing_address' => array( 'email', 'phone' ),
+        'attachment'      => 'mask',
+    ),
+);
+```
+
+Field names are matched case insensitively, and a rule keeps matching below the level it
+was declared on. That means a rule for `billing_address` also reaches the one at
+`captures[0].billing_address`, without a second rule for the list.
+
+A masked value is replaced with `[REDACTED]` if something was sent, and `[MISSING]` if the
+field was there but empty, so a support log can tell a wrong credential from a missing one.
+
+If masking fails for a section, that section is logged as `[MASKING FAILED]`. The log loses
+a section, it never leaks one.
+
+#### The allow list
+
+A deny list works until the provider adds a field, and then that field is logged in full.
+The reserved `keep` key turns a rule into an allow list, masking every key it does not name.
+
+```php
+protected $request_fields_to_mask = array(
+    'body' => array(
+        'billing_address' => array( 'keep' => array( 'postal_code', 'city', 'country' ) ),
+        'customer'        => array( 'keep' => array( 'type' ) ),
+    ),
+);
+```
+
+A kept key that another rule also describes gets both, whichever order the two rules were
+declared in. Use the allow list when a field has to be kept inside a container that would
+otherwise be masked.
+
+The same configuration can be passed to the constructor instead of declared on the class,
+as the fourth argument, where it is merged into whatever the class already declares.
+
+```php
+parent::__construct(
+    $config,
+    $settings,
+    $arguments,
+    array(
+        'request'   => array( 'body' => array( 'customer' => array( 'keep' => array( 'type' ) ) ) ),
+        'response'  => array( 'client_token' ),
+        'arguments' => array( 'order_id' ),
+    )
+);
+```
+
+A plugin that logs from somewhere other than a `Request` subclass, such as a second request
+layer of its own, can run the same pass through `Krokedil\WpApi\Masking`. Pass your plugin
+slug, so the filter that turns masking off (see below) covers this data too.
+
+```php
+use Krokedil\WpApi\Masking;
+
+$body = Masking::mask_fields(
+    $body,
+    array( 'billing_address' => array( 'keep' => array( 'postal_code', 'city' ) ) ),
+    'my_plugin_slug'
+);
+```
+
+`Masking::mask_keys( $data, $slug )` runs the key name pass the same way. Both fail closed
+and return `[MASKING FAILED]` if masking throws. `FieldMasker` and `KeyMasker` are the
+WordPress free engines underneath, and calling them directly ignores the filter.
+
+#### The key name pass
+
+The configured pass can only cover shapes someone predicted. `Krokedil\WpApi\KeyMasker`
+runs over the finished log entry and masks by key name wherever it appears, matched case
+insensitively as substrings, so `secret` also covers `shared_secret`. It never expands an
+object, and masks anything its depth guard did not reach. Nothing is truncated.
+
+Widen it once, at plugin bootstrap, with the names that are specific to your provider:
+
+```php
+use Krokedil\WpApi\KeyMasker;
+
+KeyMasker::add_keys( array( 'given_name', 'family_name', 'email', 'phone' ) );
+```
+
+A value the configured pass already masked keeps its placeholder, so the difference between
+`[REDACTED]` and `[MISSING]` survives this pass.
+
+#### Masking the URL
+
+Some APIs address a resource by a token in the path, which no rule into the payload can
+reach. Override `mask_request_url()` for that.
+
+```php
+protected function mask_request_url( $request_url ) {
+    return preg_replace( '#/authorizations/[^/]+#', '/authorizations/[REDACTED]', $request_url );
+}
+```
+
+The override is called inside a guard, so one that throws costs the URL in the log and not
+the API call.
+
+#### Turning masking off
+
+There is no setting for this, so a merchant cannot turn it off by accident. While debugging,
+a developer can turn it off with a filter. It gets the plugin slug, so one plugin can be
+targeted:
+
+```php
+add_filter(
+    'krokedil_wp_api_mask_log_data',
+    function ( $enabled, $slug ) {
+        return 'my_plugin_slug' === $slug ? false : $enabled;
+    },
+    10,
+    2
+);
+```
+
+Only a strict `false` turns it off, and a callback that throws leaves it on. It covers every
+masking step in `Request`, `Logger` and `Masking`, including the stack trace. Custom masking
+in a plugin can check `Masking::is_enabled( $slug )`. Never leave it on in production.
+
+#### XML payloads
+
+A JSON or XML response is parsed into an array by `get_response_body()` before it is
+masked, so `$response_fields_to_mask` and the key name pass reach into an XML response the
+same way as into a JSON one. XML elements become keys, and attributes land under
+`@attributes`.
+
+A request body is only decoded when it is JSON or form encoded. An XML request body, or an
+XML document sent as a form value such as `xml=<shipment>...`, stays a string that no rule
+can reach into. Mask it whole, or mask the credentials out of it in an override of
+`mask_request_args()`:
+
+```php
+protected $request_fields_to_mask = array(
+    'body' => 'mask',
+);
+```
+
+The same goes for XML sent in the query string, which `mask_request_url()` has to handle.
+
+### Development
+
+```bash
+composer test     # PHPUnit, no WordPress bootstrap needed
+composer phpcs    # WordPress coding standard
+composer phpstan  # Static analysis at level 5
+```
+
 ### Recommendations
 The recommended the class that extends the library class an abstract class that can also be extended by more direct or concrete implementations. This will alow you to have a lot of different request classes that can be used for different purposes, but still share the same base functionality. For example setting the same config to be reused for multiple requests, since most likely they will always be the same, or define the method to calculate the auth just once in your own base abstract class.
 
