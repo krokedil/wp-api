@@ -129,6 +129,11 @@ abstract class Request {
 	 *                             Merged into the configured fields, so an allow list can be passed here as well.
 	 */
 	public function __construct( $config = array(), $settings = array(), $arguments = array(), $masked_fields = array() ) {
+		// The README documents plugin_short_name for the User-Agent, so use it unless plugin_user_agent_name is set.
+		if ( empty( $config['plugin_user_agent_name'] ) && ! empty( $config['plugin_short_name'] ) ) {
+			$config['plugin_user_agent_name'] = $config['plugin_short_name'];
+		}
+
 		$this->config    = wp_parse_args( $config, $this->defaults );
 		$this->settings  = $settings;
 		$this->arguments = $arguments;
@@ -180,7 +185,7 @@ abstract class Request {
 		$plugin_version         = $this->config['plugin_version'];
 		$php_version            = phpversion();
 
-		return apply_filters( 'http_headers_useragent', "WordPress/$wp_version; $wp_url - WooCommerce: $wc_version - $plugin_user_agent_name: $plugin_version - PHP Version: $php_version - Krokedil" );
+		return apply_filters( 'http_headers_useragent', "WordPress/$wp_version; $wp_url - WooCommerce: $wc_version - $plugin_user_agent_name: $plugin_version - PHP Version: $php_version - Krokedil", $this->get_request_url() );
 	}
 
 	/**

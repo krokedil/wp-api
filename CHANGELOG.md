@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `[MISSING]` now tells an empty value from a sent one on every masked field, rather than only on the Authorization header.
 * Masking no longer decides by length whether a header holds a token. Any value a rule names is replaced, whatever its length.
 * Data nested deeper than twelve levels is masked rather than walked.
+* The `http_headers_useragent` filter now gets the request URL as its second argument.
 
 ### Deprecated
 * `sanitize_request_args()` is deprecated and delegates to the configured masking, keeping its behaviour.
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 * Log responses with an application-level error in the body (`status` is `error`) at the `error` log level, even when the HTTP status code is successful (2xx). Previously only `warning` was handled this way, so APIs such as Fraktjakt that return HTTP 200 with an error in the body were logged as `info`.
+* The User-Agent header now uses `plugin_short_name`, as the README describes.
 
 ------------------
 ## [1.1.1] - 2023-12-04
