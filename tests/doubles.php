@@ -48,6 +48,10 @@ class TestRequest extends Request {
 		return $this->sanitize_request_args( $request_args );
 	}
 
+	public function user_agent() {
+		return $this->get_user_agent();
+	}
+
 	protected function calculate_auth() {
 		return 'Basic dGVzdDp0ZXN0';
 	}
