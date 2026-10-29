@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+* The `http_headers_useragent` filter now gets the request URL as its second argument.
+
+### Fixed
+* Log responses with an application-level error in the body (`status` is `error`) at the `error` log level, even when the HTTP status code is successful (2xx). Previously only `warning` was handled this way, so APIs such as Fraktjakt that return HTTP 200 with an error in the body were logged as `info`.
+* The User-Agent header now uses `plugin_short_name`, as the README describes.
+
+------------------
+## [1.2.0] - 2026-10-07
 ### Added
 * Added configurable masking for the request, the response and the request arguments, replacing the hardcoded Authorization header and `username`/`password` handling. Rules are declared as `$request_fields_to_mask`, `$response_fields_to_mask` and `$argument_fields_to_mask`, or passed as the `$masked_fields` constructor argument, where they merge into what the class already declares.
 * Added an allow list to the masking configuration. The reserved `keep` key masks every key in a container that it does not name, so a field the provider adds later is masked by default.
@@ -22,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `[MISSING]` now tells an empty value from a sent one on every masked field, rather than only on the Authorization header.
 * Masking no longer decides by length whether a header holds a token. Any value a rule names is replaced, whatever its length.
 * Data nested deeper than twelve levels is masked rather than walked.
-* The `http_headers_useragent` filter now gets the request URL as its second argument.
+* `request()` returns the body parsed by its content type rather than always through `json_decode()`. A 2xx HTML body, or a body with no or an unknown content type that is not JSON, is now returned as a string where it used to be `null`, and a body labelled JSON or XML that cannot be parsed returns a `WP_Error`.
+* Request logs are written at the `info` level rather than the `notice` default of `WC_Logger::add()`, so a store with its log threshold at `notice` or higher no longer records successful requests.
 
 ### Deprecated
 * `sanitize_request_args()` is deprecated and delegates to the configured masking, keeping its behaviour.
@@ -32,10 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Stack trace arguments are now masked. With extended debugging on, every value passed to every caller was json encoded into the log as it was. Frame arguments are positional, so a bare token with no key name still survives unless its shape gives it away.
 * Added a key name pass over the finished log entry. `Krokedil\WpApi\KeyMasker` masks by key name wherever it appears, and by shape for an Authorization value, a JWT and a standalone base64 blob, catching what no rule describes. Consuming plugins widen the list with `KeyMasker::add_keys()`.
 * Masking fails closed. A section that cannot be masked is logged as `[MASKING FAILED]` rather than in the clear.
-
-### Fixed
-* Log responses with an application-level error in the body (`status` is `error`) at the `error` log level, even when the HTTP status code is successful (2xx). Previously only `warning` was handled this way, so APIs such as Fraktjakt that return HTTP 200 with an error in the body were logged as `info`.
-* The User-Agent header now uses `plugin_short_name`, as the README describes.
 
 ------------------
 ## [1.1.1] - 2023-12-04
