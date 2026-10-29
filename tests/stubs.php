@@ -65,6 +65,18 @@ if ( ! function_exists( 'apply_filters' ) ) {
 	}
 }
 
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( $show = '' ) {
+		return 'version' === $show ? '6.9.1' : 'https://shop.example.test';
+	}
+}
+
+if ( ! function_exists( 'WC' ) ) {
+	function WC() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
+		return (object) array( 'version' => '10.5.2' );
+	}
+}
+
 if ( ! function_exists( 'wc_get_logger' ) ) {
 	function wc_get_logger() {
 		return new WC_Logger();
