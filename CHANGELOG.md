@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+------------------
+
+## [1.2.1] - 2026-10-29
 ### Changed
 * The `http_headers_useragent` filter now gets the request URL as its second argument.
 
@@ -13,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Log responses with an application-level error in the body (`status` is `error`) at the `error` log level, even when the HTTP status code is successful (2xx). Previously only `warning` was handled this way, so APIs such as Fraktjakt that return HTTP 200 with an error in the body were logged as `info`.
 * The User-Agent header now uses `plugin_short_name`, as the README describes.
 
-------------------
 ## [1.2.0] - 2026-10-07
 ### Added
 * Added configurable masking for the request, the response and the request arguments, replacing the hardcoded Authorization header and `username`/`password` handling. Rules are declared as `$request_fields_to_mask`, `$response_fields_to_mask` and `$argument_fields_to_mask`, or passed as the `$masked_fields` constructor argument, where they merge into what the class already declares.
