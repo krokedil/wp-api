@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Fixed
-* Fixed an issue that broke the WooCommerce Store API checkout, where the `PaymentResult` passed to `woocommerce_rest_checkout_process_payment_with_context` became a string and caused a fatal error.
+* Prevented a fatal error in the block checkout when extended debugging is enabled.
 
 ------------------
 
