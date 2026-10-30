@@ -163,4 +163,26 @@ class KeyMaskerTest extends TestCase {
 		$this->assertSame( KeyMasker::REDACTED, $masked['d'] );
 		$this->assertSame( 'a perfectly ordinary sentence about a Basic problem', $masked['e'] );
 	}
+
+	/** A value held by reference, like the do_action_ref_array() arguments, is masked in the copy only. */
+	public function test_does_not_write_through_a_reference() {
+		$object = new \stdClass();
+		$secret = 'hunter2';
+		$nested = 'Bearer abcdefghijklmnop';
+		$data   = array(
+			'context',
+			&$object,
+			'password' => &$secret,
+			'list'     => array( &$nested ),
+		);
+
+		$masked = KeyMasker::mask( $data );
+
+		$this->assertSame( '[object stdClass]', $masked[1] );
+		$this->assertSame( KeyMasker::REDACTED, $masked['password'] );
+		$this->assertSame( 'Bearer ' . KeyMasker::REDACTED, $masked['list'][0] );
+		$this->assertInstanceOf( \stdClass::class, $object );
+		$this->assertSame( 'hunter2', $secret );
+		$this->assertSame( 'Bearer abcdefghijklmnop', $nested );
+	}
 }

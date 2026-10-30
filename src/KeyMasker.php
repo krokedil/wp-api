@@ -157,16 +157,17 @@ class KeyMasker {
 			return $data;
 		}
 
+		$masked = array();
 		foreach ( $data as $key => $value ) {
 			if ( ! is_int( $key ) && self::is_sensitive_key( (string) $key ) ) {
-				$data[ $key ] = self::is_placeholder( $value ) ? $value : self::placeholder( $value );
+				$masked[ $key ] = self::is_placeholder( $value ) ? $value : self::placeholder( $value );
 				continue;
 			}
 
-			$data[ $key ] = self::mask_node( $value, $depth + 1 );
+			$masked[ $key ] = self::mask_node( $value, $depth + 1 );
 		}
 
-		return $data;
+		return $masked;
 	}
 
 	/**

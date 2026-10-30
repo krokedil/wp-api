@@ -71,6 +71,16 @@ class LoggerTest extends TestCase {
 		$this->assertStringContainsString( 'plainsecretvalue', $this->own_frames( 'plainsecretvalue' ) );
 	}
 
+	/** A hook argument passed by reference, as WooCommerce passes the PaymentResult, survives the masking. */
+	public function test_masking_stack_arguments_leaves_references_intact() {
+		$result = new \stdClass();
+
+		$frames = $this->own_frames( array( 'context', &$result ) );
+
+		$this->assertStringContainsString( '[object stdClass]', $frames );
+		$this->assertInstanceOf( \stdClass::class, $result );
+	}
+
 	/**
 	 * Get the encoded stack frames that carry the given arguments.
 	 *
