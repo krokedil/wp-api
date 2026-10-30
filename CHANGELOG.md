@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ------------------
 
+## [1.2.2] - 2026-10-30
+### Fixed
+* Prevented a fatal error in the block checkout when extended debugging is enabled.
+
 ## [1.2.1] - 2026-10-29
 ### Changed
 * The `http_headers_useragent` filter now gets the request URL as its second argument.
