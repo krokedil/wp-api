@@ -175,30 +175,31 @@ class FieldMasker {
 			return $data;
 		}
 
+		$masked = array();
 		foreach ( $data as $key => $value ) {
 			// A list entry has no name of its own, so it is treated as the container it sits in.
 			if ( is_int( $key ) ) {
-				$data[ $key ] = self::mask_node( $value, $scope, $keep, $depth + 1 );
+				$masked[ $key ] = self::mask_node( $value, $scope, $keep, $depth + 1 );
 				continue;
 			}
 
 			$name = strtolower( (string) $key );
 
 			if ( isset( $scope['mask'][ $name ] ) || ( null !== $keep && ! isset( $keep[ $name ] ) ) ) {
-				$data[ $key ] = KeyMasker::placeholder( $value );
+				$masked[ $key ] = KeyMasker::placeholder( $value );
 				continue;
 			}
 
 			$child = $scope['children'][ $name ] ?? null;
 			if ( null === $child ) {
-				$data[ $key ] = is_array( $value ) ? self::mask_node( $value, $scope, null, $depth + 1 ) : $value;
+				$masked[ $key ] = is_array( $value ) ? self::mask_node( $value, $scope, null, $depth + 1 ) : $value;
 				continue;
 			}
 
 			// A configured container that is not one cannot be walked, so it is masked whole
 			// rather than left in the clear when the provider changes shape.
 			if ( ! is_array( $value ) ) {
-				$data[ $key ] = KeyMasker::placeholder( $value );
+				$masked[ $key ] = KeyMasker::placeholder( $value );
 				continue;
 			}
 
@@ -213,9 +214,9 @@ class FieldMasker {
 				)
 			);
 
-			$data[ $key ] = self::mask_node( $value, $next, $child['keep'], $depth + 1 );
+			$masked[ $key ] = self::mask_node( $value, $next, $child['keep'], $depth + 1 );
 		}
 
-		return $data;
+		return $masked;
 	}
 }

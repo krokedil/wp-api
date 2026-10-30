@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+* Fixed an issue that broke the WooCommerce Store API checkout, where the `PaymentResult` passed to `woocommerce_rest_checkout_process_payment_with_context` became a string and caused a fatal error.
 
 ------------------
 
